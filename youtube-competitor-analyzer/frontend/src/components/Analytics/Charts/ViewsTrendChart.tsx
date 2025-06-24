@@ -58,7 +58,7 @@ export const ViewsTrendChart: React.FC<ViewsTrendChartProps> = ({
               : value.toLocaleString();
             return `${label}: ${formattedValue} views`;
           },
-          afterLabel: function(context: any) {
+          afterLabel: function(_context: any) {
             return 'Click for detailed video breakdown';
           }
         }

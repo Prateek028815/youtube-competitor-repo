@@ -1,131 +1,163 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import type { AnalysisResponse } from '../../types/youtube';
 
 interface CompetitorTrackerProps {
-  analysisResults: AnalysisResponse | null;
-}
-
-interface PerformanceMetrics {
-  channelName: string;
-  channelId: string;
-  totalViews: number;
-  avgViews: number;
-  engagementRate: number;
-  uploadFrequency: number;
-  competitiveScore: number;
+  analysisResults: AnalysisResponse;
 }
 
 export const CompetitorTracker: React.FC<CompetitorTrackerProps> = ({ analysisResults }) => {
-  const [performanceData, setPerformanceData] = useState<PerformanceMetrics[]>([]);
-
-  useEffect(() => {
-    if (analysisResults?.data?.channels) {
-      analyzeCompetitorPerformance();
-    }
+  const competitorData = useMemo(() => {
+    if (!analysisResults.data?.channels) return [];
+    
+    return analysisResults.data.channels
+      .filter(channel => channel.analytics && channel.channelMetrics)
+      .map(channel => ({
+        name: channel.channelName,
+        subscribers: channel.channelMetrics?.subscriberCount || 0,
+        totalViews: channel.analytics?.totalViews || 0,
+        engagementRate: channel.analytics?.engagementRate || 0,
+        performanceScore: channel.analytics?.performanceScore || 0,
+        videoCount: channel.videos?.length || 0,
+        growthTrend: channel.analytics?.viewsGrowthTrend || 'stable'
+      }))
+      .sort((a, b) => b.performanceScore - a.performanceScore);
   }, [analysisResults]);
-
-  const analyzeCompetitorPerformance = () => {
-    const channels = analysisResults?.data?.channels || [];
-    
-    const metrics: PerformanceMetrics[] = channels.map((channel) => {
-      const totalViews = channel.analytics?.totalViews || 0;
-      const avgViews = channel.analytics?.averageViews || 0;
-      const engagementRate = channel.analytics?.engagementRate || 0;
-      const uploadFreq = parseUploadFrequency(channel.analytics?.uploadFrequency || '0');
-      
-      // Calculate competitive score (0-100)
-      const viewScore = Math.min((avgViews / 50000) * 30, 30);
-      const engagementScore = Math.min(engagementRate * 20, 25);
-      const consistencyScore = Math.min(uploadFreq * 5, 20);
-      const competitiveScore = Math.round(viewScore + engagementScore + consistencyScore + 25);
-      
-      return {
-        channelName: channel.channelName,
-        channelId: channel.channelId,
-        totalViews,
-        avgViews,
-        engagementRate,
-        uploadFrequency: uploadFreq,
-        competitiveScore
-      };
-    });
-    
-    setPerformanceData(metrics.sort((a, b) => b.competitiveScore - a.competitiveScore));
-  };
-
-  const parseUploadFrequency = (frequency: string): number => {
-    const match = frequency.match(/(\d+)/);
-    return match ? parseInt(match[1]) : 0;
-  };
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return Math.round(num).toLocaleString();
+    return num.toLocaleString();
   };
 
-  const getScoreColor = (score: number): string => {
-    if (score >= 80) return '#4CAF50';
-    if (score >= 60) return '#FF9800';
-    if (score >= 40) return '#FFC107';
-    return '#F44336';
+  const getPerformanceColor = (score: number) => {
+    if (score >= 90) return { bg: '#dcfce7', border: '#16a34a', text: '#15803d', badge: 'Excellent' };
+    if (score >= 75) return { bg: '#fef3c7', border: '#d97706', text: '#92400e', badge: 'Good' };
+    if (score >= 60) return { bg: '#dbeafe', border: '#2563eb', text: '#1d4ed8', badge: 'Average' };
+    if (score >= 40) return { bg: '#f3e8ff', border: '#7c3aed', text: '#6b21a8', badge: 'Below Avg' };
+    return { bg: '#fee2e2', border: '#dc2626', text: '#991b1b', badge: 'Poor' };
   };
 
-  if (!analysisResults?.data?.channels || analysisResults.data.channels.length < 2) {
+  const getTrendIcon = (trend: string) => {
+    switch (trend) {
+      case 'up': return { icon: '📈', color: '#16a34a', bg: '#dcfce7' };
+      case 'down': return { icon: '📉', color: '#dc2626', bg: '#fee2e2' };
+      default: return { icon: '➡️', color: '#6b7280', bg: '#f3f4f6' };
+    }
+  };
+
+  if (competitorData.length < 2) {
     return (
       <div className="competitor-tracker-empty">
-        <h3>📊 Competitor Performance Tracker</h3>
-        <p>Add multiple channels to enable competitive comparison</p>
+        <div className="empty-icon">🏆</div>
+        <h3>Competitor Analysis Unavailable</h3>
+        <p>Need at least 2 channels with valid data for comparison</p>
       </div>
     );
   }
 
   return (
-    <div className="competitor-tracker">
-      <div className="tracker-header">
-        <h2>📊 Competitor Performance Tracker</h2>
+    <div className="competitor-tracker-enhanced">
+      <div className="tracker-header-enhanced">
+        <div className="header-content-enhanced">
+          <h3 className="tracker-title-enhanced">🏆 Competitor Performance Tracker</h3>
+          <p className="tracker-subtitle-enhanced">
+            Ranking of {competitorData.length} NEET channels by performance score
+          </p>
+        </div>
       </div>
 
-      <div className="performance-cards">
-        {performanceData.map((channel, index) => (
-          <div key={channel.channelId} className="performance-card">
-            <div className="card-header">
-              <h4>{channel.channelName}</h4>
-              <div className="rank-badge">#{index + 1}</div>
-            </div>
-            
-            <div className="score-section">
-              <div className="competitive-score">
-                <span className="score-number">{channel.competitiveScore}</span>
-                <span className="score-grade">
-                  {channel.competitiveScore >= 90 ? 'A+' : 
-                   channel.competitiveScore >= 80 ? 'A' : 
-                   channel.competitiveScore >= 70 ? 'B' : 
-                   channel.competitiveScore >= 60 ? 'C' : 'D'}
-                </span>
+      <div className="competitor-leaderboard">
+        {competitorData.map((competitor, index) => {
+          const performance = getPerformanceColor(competitor.performanceScore);
+          const trend = getTrendIcon(competitor.growthTrend);
+          const isTopPerformer = index === 0;
+          
+          return (
+            <div 
+              key={competitor.name} 
+              className={`competitor-card-enhanced ${isTopPerformer ? 'top-performer' : ''}`}
+            >
+              <div className="competitor-rank-section">
+                <div className={`rank-badge ${index < 3 ? 'podium' : ''}`}>
+                  <span className="rank-number">#{index + 1}</span>
+                  {index === 0 && <span className="crown">👑</span>}
+                </div>
               </div>
-            </div>
 
-            <div className="metrics-grid">
-              <div className="metric">
-                <span className="metric-label">Avg Views</span>
-                <span className="metric-value">{formatNumber(channel.avgViews)}</span>
+              <div className="competitor-info-section">
+                <div className="competitor-header">
+                  <h4 className="competitor-name">{competitor.name}</h4>
+                  <div 
+                    className="performance-badge-enhanced"
+                    style={{
+                      backgroundColor: performance.bg,
+                      borderColor: performance.border,
+                      color: performance.text
+                    }}
+                  >
+                    {performance.badge}
+                  </div>
+                </div>
+
+                <div className="competitor-metrics-grid">
+                  <div className="metric-item-enhanced subscribers">
+                    <div className="metric-icon">👥</div>
+                    <div className="metric-content">
+                      <div className="metric-value">{formatNumber(competitor.subscribers)}</div>
+                      <div className="metric-label">Subscribers</div>
+                    </div>
+                  </div>
+
+                  <div className="metric-item-enhanced views">
+                    <div className="metric-icon">👁️</div>
+                    <div className="metric-content">
+                      <div className="metric-value">{formatNumber(competitor.totalViews)}</div>
+                      <div className="metric-label">Total Views</div>
+                    </div>
+                  </div>
+
+                  <div className="metric-item-enhanced engagement">
+                    <div className="metric-icon">💬</div>
+                    <div className="metric-content">
+                      <div className="metric-value">{competitor.engagementRate.toFixed(1)}%</div>
+                      <div className="metric-label">Engagement</div>
+                    </div>
+                  </div>
+
+                  <div className="metric-item-enhanced videos">
+                    <div className="metric-icon">📹</div>
+                    <div className="metric-content">
+                      <div className="metric-value">{competitor.videoCount}</div>
+                      <div className="metric-label">Videos</div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="metric">
-                <span className="metric-label">Total Views</span>
-                <span className="metric-value">{formatNumber(channel.totalViews)}</span>
-              </div>
-              <div className="metric">
-                <span className="metric-label">Engagement</span>
-                <span className="metric-value">{channel.engagementRate.toFixed(2)}%</span>
-              </div>
-              <div className="metric">
-                <span className="metric-label">Upload Freq</span>
-                <span className="metric-value">{channel.uploadFrequency}/week</span>
+
+              <div className="competitor-performance-section">
+                <div className="performance-score-container">
+                  <div className="score-circle" style={{ borderColor: performance.border }}>
+                    <span className="score-value" style={{ color: performance.text }}>
+                      {competitor.performanceScore}
+                    </span>
+                  </div>
+                  <div className="score-label">Performance Score</div>
+                </div>
+
+                <div 
+                  className="trend-indicator"
+                  style={{ 
+                    backgroundColor: trend.bg,
+                    color: trend.color
+                  }}
+                >
+                  <span className="trend-icon">{trend.icon}</span>
+                  <span className="trend-text">{competitor.growthTrend}</span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

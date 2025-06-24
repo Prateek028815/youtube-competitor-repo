@@ -4,6 +4,7 @@ import { ChartContainer } from './ChartContainer';
 import { defaultChartOptions } from './chartConfig';
 import { ComparativeProcessor } from '../../../utils/comparativeProcessor';
 import type { ChannelAnalysis } from '../../../types/youtube';
+import { Chart } from 'chart.js';
 
 interface ComparativeGrowthChartProps {
   channels: ChannelAnalysis[];
@@ -16,18 +17,28 @@ export const ComparativeGrowthChart: React.FC<ComparativeGrowthChartProps> = ({
 }) => {
   const [selectedMetric, setSelectedMetric] = useState<'views' | 'engagement' | 'uploads'>('views');
   const chartRef = useRef<any>(null);
+  const canvasId = `comparative-chart-${Date.now()}`;
   
   console.log('📊 Rendering ComparativeGrowthChart with', channels.length, 'channels');
 
-  // Destroy chart on unmount to prevent canvas reuse errors
+  // FIXED: Destroy existing chart before creating new one
   useEffect(() => {
     return () => {
-      if (chartRef.current) {
-        chartRef.current.destroy();
-        chartRef.current = null;
+      // Destroy chart using Chart.getChart method
+      const existingChart = Chart.getChart(canvasId);
+      if (existingChart) {
+        existingChart.destroy();
       }
     };
-  }, []);
+  }, [canvasId]);
+
+  // FIXED: Destroy chart when dependencies change
+  useEffect(() => {
+    const existingChart = Chart.getChart(canvasId);
+    if (existingChart) {
+      existingChart.destroy();
+    }
+  }, [selectedMetric, timeRange, channels, canvasId]);
 
   const { chartData, growthStats } = useMemo(() => {
     if (!channels || channels.length < 2) {
@@ -58,7 +69,7 @@ export const ComparativeGrowthChart: React.FC<ComparativeGrowthChartProps> = ({
     }
   }, [channels, selectedMetric, timeRange]);
 
-  // FIXED: Remove the problematic legend generateLabels function
+  // FIXED: Simplified chart options without problematic legend function
   const chartOptions = useMemo(() => ({
     ...defaultChartOptions,
     plugins: {
@@ -100,22 +111,18 @@ export const ComparativeGrowthChart: React.FC<ComparativeGrowthChartProps> = ({
             }
             
             return `${label}: ${formattedValue}`;
-          },
-          afterLabel: function(context: any) {
-            const datasetIndex = context.datasetIndex;
-            const growth = growthStats?.[datasetIndex]?.growth || 0;
-            return `Growth: ${growth > 0 ? '+' : ''}${growth.toFixed(1)}%`;
           }
         }
       },
       legend: {
-        ...defaultChartOptions.plugins?.legend,
         position: 'bottom' as const,
         labels: {
-          ...defaultChartOptions.plugins?.legend?.labels,
           padding: 15,
           usePointStyle: true,
-          // FIXED: Removed the problematic generateLabels function that caused infinite recursion
+          font: {
+            size: 12,
+            weight: 'normal' as const
+          }
         }
       }
     },
@@ -145,7 +152,7 @@ export const ComparativeGrowthChart: React.FC<ComparativeGrowthChartProps> = ({
         }
       }
     }
-  }), [selectedMetric, timeRange, growthStats]);
+  }), [selectedMetric, timeRange]);
 
   const handleExport = () => {
     console.log('📊 Exporting comparative growth chart');
@@ -190,11 +197,12 @@ export const ComparativeGrowthChart: React.FC<ComparativeGrowthChartProps> = ({
           </select>
         </div>
 
-        {/* Chart - FIXED: Added ref and key for proper chart management */}
+        {/* FIXED: Chart with unique ID and proper cleanup */}
         <div className="chart-wrapper">
           <Line 
             ref={chartRef}
-            key={`comparative-${selectedMetric}-${timeRange}-${channels.length}`}
+            id={canvasId}
+            key={`${canvasId}-${selectedMetric}-${timeRange}`}
             data={chartData} 
             options={chartOptions} 
           />
@@ -205,7 +213,7 @@ export const ComparativeGrowthChart: React.FC<ComparativeGrowthChartProps> = ({
           <div className="growth-statistics">
             <h4>📈 Growth Statistics ({timeRange} days)</h4>
             <div className="stats-grid">
-              {growthStats.map((stat, index) => (
+              {growthStats.map((stat) => (
                 <div key={stat.channelId} className="stat-card">
                   <div className="stat-header">
                     <span className="rank-badge">#{stat.rank}</span>

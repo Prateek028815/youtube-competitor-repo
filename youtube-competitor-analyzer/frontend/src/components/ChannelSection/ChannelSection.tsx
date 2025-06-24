@@ -15,11 +15,11 @@ export const ChannelSection: React.FC<ChannelSectionProps> = ({
   channelIndex, 
   totalChannels 
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false); // Default collapsed for better UX
-  const [showVideos, setShowVideos] = useState(false);
-  const [showAnalytics, setShowAnalytics] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'videos' | 'analytics'>('overview');
   const [sortBy, setSortBy] = useState<'views' | 'date' | 'engagement'>('views');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   console.log(`🔍 ChannelSection rendering:`, {
     channelName: channel?.channelName,
@@ -29,29 +29,33 @@ export const ChannelSection: React.FC<ChannelSectionProps> = ({
   });
 
   if (!channel) {
-    console.error('❌ ChannelSection: No channel data');
     return (
-      <div className="channel-section-error">
-        <h3>⚠️ No Channel Data</h3>
-        <p>Channel data is missing or invalid.</p>
+      <div className="channel-error-modern">
+        <div className="error-illustration">
+          <div className="error-icon">⚠️</div>
+          <div className="error-bg"></div>
+        </div>
+        <h3>Channel Data Unavailable</h3>
+        <p>Unable to load channel information. Please try again.</p>
       </div>
     );
   }
 
-  const calculateChannelAverage = (): number => {
-    if (!channel.videos || channel.videos.length === 0) return 0;
-    const totalViews = channel.videos.reduce((sum, video) => sum + (video.viewCount || 0), 0);
-    return Math.round(totalViews / channel.videos.length);
-  };
-
   const getSortedVideos = () => {
     if (!channel.videos || !Array.isArray(channel.videos)) {
-      console.warn('⚠️ Invalid videos array:', channel.videos);
       return [];
     }
     
-    const videos = [...channel.videos];
+    let videos = [...channel.videos];
     
+    // Filter by search term
+    if (searchTerm) {
+      videos = videos.filter(video => 
+        video.title.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Sort videos
     switch (sortBy) {
       case 'views':
         return videos.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
@@ -72,27 +76,51 @@ export const ChannelSection: React.FC<ChannelSectionProps> = ({
     }
   };
 
-  const getChannelRank = (): string => {
-    const rank = channelIndex + 1;
-    const suffix = rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th';
-    return `${rank}${suffix}`;
-  };
-
   const getPerformanceData = () => {
-    // Fixed: Added null check for analytics
-    if (!channel.analytics) return { status: 'unknown', color: '#9e9e9e', message: 'No data', icon: '📊' };
+    if (!channel.analytics) {
+      return { 
+        status: 'No Data', 
+        color: '#64748b', 
+        icon: '📊', 
+        gradient: 'linear-gradient(135deg, #64748b, #475569)',
+        score: 0
+      };
+    }
     
     const score = channel.analytics.performanceScore || 0;
-    if (score >= 80) return { status: 'excellent', color: '#10B981', message: 'Excellent', icon: '🏆' };
-    if (score >= 60) return { status: 'good', color: '#F59E0B', message: 'Good', icon: '⭐' };
-    if (score >= 40) return { status: 'average', color: '#6B7280', message: 'Average', icon: '📈' };
-    return { status: 'below', color: '#EF4444', message: 'Needs Work', icon: '📊' };
+    if (score >= 80) return { 
+      status: 'Excellent', 
+      color: '#10b981', 
+      icon: '🏆',
+      gradient: 'linear-gradient(135deg, #10b981, #059669)',
+      score
+    };
+    if (score >= 60) return { 
+      status: 'Good', 
+      color: '#f59e0b', 
+      icon: '⭐',
+      gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
+      score
+    };
+    if (score >= 40) return { 
+      status: 'Average', 
+      color: '#6366f1', 
+      icon: '📈',
+      gradient: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+      score
+    };
+    return { 
+      status: 'Needs Work', 
+      color: '#ef4444', 
+      icon: '📊',
+      gradient: 'linear-gradient(135deg, #ef4444, #dc2626)',
+      score
+    };
   };
 
-  const hasValidAnalytics = !!(channel.analytics && channel.channelMetrics);
-  const sortedVideos = getSortedVideos();
-  const channelAverage = calculateChannelAverage();
-  const performanceData = getPerformanceData();
+  const getTopVideos = () => {
+    return getSortedVideos().slice(0, 3);
+  };
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -100,90 +128,110 @@ export const ChannelSection: React.FC<ChannelSectionProps> = ({
     return Math.round(num).toLocaleString();
   };
 
+  const calculateChannelAverage = (): number => {
+    if (!channel.videos || channel.videos.length === 0) return 0;
+    const totalViews = channel.videos.reduce((sum, video) => sum + (video.viewCount || 0), 0);
+    return Math.round(totalViews / channel.videos.length);
+  };
+
+  const hasValidAnalytics = !!(channel.analytics && channel.channelMetrics);
+  const sortedVideos = getSortedVideos();
+  const topVideos = getTopVideos();
+  const performanceData = getPerformanceData();
+  const channelAverage = calculateChannelAverage();
+
   return (
-    <div className="channel-section-enhanced">
-      {/* Collapsible Header */}
-      <div className="section-header" onClick={() => setIsExpanded(!isExpanded)}>
-        <div className="section-title-row">
-          <div className="section-title">
-            <div className="channel-rank">#{getChannelRank()}</div>
-            <h3 className="section-heading">{channel.channelName}</h3>
-            {hasValidAnalytics && (
-              <div 
-                className="performance-badge"
-                style={{ 
-                  backgroundColor: performanceData.color + '20',
-                  borderColor: performanceData.color,
-                  color: performanceData.color
-                }}
-              >
-                <span className="performance-icon">{performanceData.icon}</span>
-                {performanceData.message}
-              </div>
-            )}
+    <div className="modern-channel-card">
+      {/* Modern Channel Header */}
+      <div className="channel-header-modern" onClick={() => setIsExpanded(!isExpanded)}>
+        <div className="header-gradient-bg"></div>
+        
+        <div className="header-content-modern">
+          {/* Channel Rank */}
+          <div className="channel-rank-badge">
+            <div className="rank-number">#{channelIndex + 1}</div>
+            <div className="rank-label">
+              {channelIndex === 0 ? '1st' : channelIndex === 1 ? '2nd' : channelIndex === 2 ? '3rd' : `${channelIndex + 1}th`}
+            </div>
           </div>
           
-          <div className="section-controls">
-            <button 
-              className={`toggle-btn ${isExpanded ? 'expanded' : 'collapsed'}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsExpanded(!isExpanded);
-              }}
-              title={isExpanded ? 'Collapse channel details' : 'Expand channel details'}
-            >
+          {/* Channel Info */}
+          <div className="channel-info-modern">
+            <div className="channel-title-section">
+              <h3 className="channel-title-modern">{channel.channelName}</h3>
+              {hasValidAnalytics && (
+                <div 
+                  className="performance-badge-header"
+                  style={{ 
+                    background: performanceData.gradient,
+                    boxShadow: `0 4px 20px ${performanceData.color}40`
+                  }}
+                >
+                  <span className="badge-icon">{performanceData.icon}</span>
+                  <span className="badge-text">{performanceData.status}</span>
+                  <span className="badge-score">{performanceData.score}/100</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Quick Metrics */}
+            <div className="quick-metrics-modern">
+              <div className="metric-item-modern">
+                <div className="metric-icon">📹</div>
+                <div className="metric-content">
+                  <span className="metric-value">{channel.videos?.length || 0}</span>
+                  <span className="metric-label">Videos</span>
+                </div>
+              </div>
+              
+              {hasValidAnalytics && channel.analytics && (
+                <>
+                  <div className="metric-item-modern">
+                    <div className="metric-icon">👁️</div>
+                    <div className="metric-content">
+                      <span className="metric-value">{formatNumber(channel.analytics.totalViews)}</span>
+                      <span className="metric-label">Total Views</span>
+                    </div>
+                  </div>
+                  
+                  <div className="metric-item-modern">
+                    <div className="metric-icon">💬</div>
+                    <div className="metric-content">
+                      <span className="metric-value">{channel.analytics.engagementRate.toFixed(1)}%</span>
+                      <span className="metric-label">Engagement</span>
+                    </div>
+                  </div>
+                  
+                  <div className="metric-item-modern">
+                    <div className="metric-icon">📊</div>
+                    <div className="metric-content">
+                      <span className="metric-value">{formatNumber(channelAverage)}</span>
+                      <span className="metric-label">Avg Views</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          
+          {/* Expand Button */}
+          <div className="expand-control-modern">
+            <button className="expand-btn-modern">
               <svg 
-                className="toggle-icon" 
+                className={`expand-icon ${isExpanded ? 'expanded' : 'collapsed'}`}
                 viewBox="0 0 24 24" 
                 fill="none" 
                 stroke="currentColor"
-                style={{ 
-                  width: '20px', 
-                  height: '20px',
-                  transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.3s ease'
-                }}
               >
-                <path 
-                  d="M6 9l6 6 6-6" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                />
+                <path d="M6 9l6 6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
           </div>
         </div>
 
-        {/* Quick Stats (Always Visible) */}
-        <div className="quick-stats-row">
-          <div className="quick-stat">
-            <span className="stat-value">{channel.videos?.length || 0}</span>
-            <span className="stat-label">Videos</span>
-          </div>
-          {hasValidAnalytics && channel.analytics && (
-            <>
-              <div className="quick-stat">
-                <span className="stat-value">
-                  {formatNumber(channel.analytics.totalViews)}
-                </span>
-                <span className="stat-label">Total Views</span>
-              </div>
-              <div className="quick-stat">
-                <span className="stat-value">{channel.analytics.engagementRate.toFixed(1)}%</span>
-                <span className="stat-label">Engagement</span>
-              </div>
-              <div className="quick-stat">
-                <span className="stat-value">{channel.analytics.performanceScore}/100</span>
-                <span className="stat-label">Score</span>
-              </div>
-            </>
-          )}
-        </div>
-
         {/* Error Banner */}
         {channel.error && (
-          <div className="error-banner">
+          <div className="error-banner-header">
             <div className="error-content">
               <span className="error-icon">⚠️</span>
               <span className="error-text">Error: {channel.error}</span>
@@ -193,145 +241,245 @@ export const ChannelSection: React.FC<ChannelSectionProps> = ({
       </div>
 
       {/* Expandable Content */}
-      <div className={`section-content ${isExpanded ? 'expanded' : 'collapsed'}`}>
+      <div className={`expandable-content-modern ${isExpanded ? 'expanded' : 'collapsed'}`}>
         {isExpanded && (
           <>
-            {/* Content Controls */}
-            <div className="content-controls">
-              <div className="control-tabs">
+            {/* Tab Navigation */}
+            <div className="tab-navigation-modern">
+              <div className="tab-container">
                 <button 
-                  className={`control-tab ${showAnalytics && !showVideos ? 'active' : ''}`}
-                  onClick={() => {
-                    setShowAnalytics(true);
-                    setShowVideos(false);
-                  }}
+                  className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('overview')}
                 >
-                  📊 Analytics Only
+                  <span className="tab-icon">📊</span>
+                  <span className="tab-text">Overview</span>
                 </button>
+                
                 <button 
-                  className={`control-tab ${showVideos && !showAnalytics ? 'active' : ''}`}
-                  onClick={() => {
-                    setShowVideos(true);
-                    setShowAnalytics(false);
-                  }}
+                  className={`tab-btn ${activeTab === 'videos' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('videos')}
                 >
-                  📹 Videos Only ({channel.videos?.length || 0})
+                  <span className="tab-icon">📹</span>
+                  <span className="tab-text">Videos ({channel.videos?.length || 0})</span>
                 </button>
+                
                 <button 
-                  className={`control-tab ${showAnalytics && showVideos ? 'active' : ''}`}
-                  onClick={() => {
-                    setShowAnalytics(true);
-                    setShowVideos(true);
-                  }}
+                  className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('analytics')}
+                  disabled={!hasValidAnalytics}
                 >
-                  📋 Full Analysis
+                  <span className="tab-icon">📈</span>
+                  <span className="tab-text">Analytics</span>
                 </button>
               </div>
             </div>
 
-            {/* Channel Header - Fixed: Only pass channel prop */}
-            <ChannelHeader channel={channel} />
-
-            {/* Analytics Section */}
-            {showAnalytics && hasValidAnalytics && (
-              <div className="analytics-section">
-                <ChannelAnalytics channel={channel} />
-              </div>
-            )}
-
-            {/* Videos Section */}
-            {showVideos && (
-              <div className="videos-section">
-                <div className="videos-header">
-                  <div className="videos-title">
-                    <h4>📹 Channel Videos</h4>
-                    <span className="videos-count">
-                      {channel.videos?.length || 0} video{(channel.videos?.length || 0) !== 1 ? 's' : ''} found
-                    </span>
-                  </div>
+            {/* Tab Content */}
+            <div className="tab-content-modern">
+              {/* Overview Tab */}
+              {activeTab === 'overview' && (
+                <div className="overview-content">
+                  {/* Channel Header */}
+                  <ChannelHeader channel={channel} />
                   
-                  <div className="videos-controls">
-                    <div className="sort-controls">
-                      <span className="control-label">Sort by:</span>
+                  {/* Top Videos Section */}
+                  <div className="top-videos-section">
+                    <div className="section-header">
+                      <h4 className="section-title">
+                        <span className="section-icon">🏆</span>
+                        Top Performing Videos
+                      </h4>
+                      <button 
+                        onClick={() => setActiveTab('videos')}
+                        className="view-all-btn"
+                      >
+                        View All ({channel.videos?.length || 0})
+                      </button>
+                    </div>
+                    
+                    <div className="top-videos-grid">
+                      {topVideos.length > 0 ? (
+                        topVideos.map((video, index) => (
+                          <div key={video.videoId} className="top-video-card">
+                            <div className="video-rank-badge">#{index + 1}</div>
+                            <div className="video-thumbnail-wrapper">
+                              {video.thumbnail ? (
+                                <img 
+                                  src={video.thumbnail} 
+                                  alt={video.title}
+                                  className="video-thumbnail-small"
+                                />
+                              ) : (
+                                <div className="thumbnail-placeholder-small">
+                                  <span>📹</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="video-info-compact">
+                              <h5 className="video-title-compact">{video.title}</h5>
+                              <div className="video-stats-compact">
+                                <span className="stat-compact">
+                                  👁️ {formatNumber(video.viewCount)}
+                                </span>
+                                <span className="stat-compact">
+                                  👍 {formatNumber(video.likeCount || 0)}
+                                </span>
+                                <span className="stat-compact">
+                                  💬 {formatNumber(video.commentCount || 0)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="no-videos-compact">
+                          <span className="no-videos-icon">📹</span>
+                          <span>No videos found</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Videos Tab */}
+              {activeTab === 'videos' && (
+                <div className="videos-content">
+                  <div className="videos-controls-modern">
+                    <div className="controls-left">
+                      <div className="search-wrapper">
+                        <div className="search-icon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="m21 21-4.35-4.35"/>
+                          </svg>
+                        </div>
+                        <input
+                          type="text"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          placeholder="Search videos..."
+                          className="video-search-input"
+                        />
+                        {searchTerm && (
+                          <button 
+                            onClick={() => setSearchTerm('')}
+                            className="clear-search-small"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                              <line x1="18" y1="6" x2="6" y2="18"/>
+                              <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                      
                       <select 
                         value={sortBy} 
                         onChange={(e) => setSortBy(e.target.value as any)}
-                        className="sort-select"
+                        className="sort-select-modern"
                       >
-                        <option value="views">Views (High to Low)</option>
-                        <option value="date">Date (Newest First)</option>
-                        <option value="engagement">Engagement Rate</option>
+                        <option value="views">Sort by Views</option>
+                        <option value="date">Sort by Date</option>
+                        <option value="engagement">Sort by Engagement</option>
                       </select>
                     </div>
                     
-                    <div className="view-controls">
-                      <button 
-                        className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
-                        onClick={() => setViewMode('list')}
-                        title="List View"
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                          <line x1="8" y1="6" x2="21" y2="6"/>
-                          <line x1="8" y1="12" x2="21" y2="12"/>
-                          <line x1="8" y1="18" x2="21" y2="18"/>
-                          <line x1="3" y1="6" x2="3.01" y2="6"/>
-                          <line x1="3" y1="12" x2="3.01" y2="12"/>
-                          <line x1="3" y1="18" x2="3.01" y2="18"/>
-                        </svg>
-                      </button>
-                      <button 
-                        className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                        onClick={() => setViewMode('grid')}
-                        title="Grid View"
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                          <rect x="3" y="3" width="7" height="7"/>
-                          <rect x="14" y="3" width="7" height="7"/>
-                          <rect x="14" y="14" width="7" height="7"/>
-                          <rect x="3" y="14" width="7" height="7"/>
-                        </svg>
-                      </button>
+                    <div className="controls-right">
+                      <div className="view-mode-toggle">
+                        <button 
+                          className={`view-mode-btn ${viewMode === 'list' ? 'active' : ''}`}
+                          onClick={() => setViewMode('list')}
+                          title="List View"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <line x1="8" y1="6" x2="21" y2="6"/>
+                            <line x1="8" y1="12" x2="21" y2="12"/>
+                            <line x1="8" y1="18" x2="21" y2="18"/>
+                            <line x1="3" y1="6" x2="3.01" y2="6"/>
+                            <line x1="3" y1="12" x2="3.01" y2="12"/>
+                            <line x1="3" y1="18" x2="3.01" y2="18"/>
+                          </svg>
+                        </button>
+                        <button 
+                          className={`view-mode-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                          onClick={() => setViewMode('grid')}
+                          title="Grid View"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <rect x="3" y="3" width="7" height="7"/>
+                            <rect x="14" y="3" width="7" height="7"/>
+                            <rect x="14" y="14" width="7" height="7"/>
+                            <rect x="3" y="14" width="7" height="7"/>
+                          </svg>
+                        </button>
+                      </div>
+                      
+                      <div className="results-count">
+                        {sortedVideos.length} video{sortedVideos.length !== 1 ? 's' : ''}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className={`videos-container ${viewMode}`}>
-                  {sortedVideos.length > 0 ? (
-                    sortedVideos.map((video, index) => {
-                      if (!video || !video.videoId) {
-                        return (
-                          <div 
-                            key={`invalid-${index}`} 
-                            className="video-error"
-                          >
-                            ⚠️ Invalid video data at index {index}
-                          </div>
-                        );
-                      }
-                      
-                      return (
-                        <VideoCard 
-                          key={`${video.videoId}-${index}`}
-                          video={video} 
-                          channelAverage={channelAverage}
-                        />
-                      );
-                    })
-                  ) : (
-                    <div className="no-videos-state">
-                      <div className="no-videos-icon">📹</div>
-                      <h4>No Videos Found</h4>
-                      <p>
-                        {channel.error 
-                          ? 'Unable to load videos due to an error.' 
-                          : 'No videos were published in the selected time period.'
+                  <div className={`videos-container-modern ${viewMode}`}>
+                    {sortedVideos.length > 0 ? (
+                      sortedVideos.map((video, index) => {
+                        if (!video || !video.videoId) {
+                          return (
+                            <div 
+                              key={`invalid-${index}`} 
+                              className="video-error-item"
+                            >
+                              <span className="error-icon">⚠️</span>
+                              <span>Invalid video data</span>
+                            </div>
+                          );
                         }
-                      </p>
-                    </div>
-                  )}
+                        
+                        return (
+                          <VideoCard 
+                            key={`${video.videoId}-${index}`}
+                            video={video} 
+                            channelAverage={channelAverage}
+                          />
+                        );
+                      })
+                    ) : (
+                      <div className="no-videos-state-modern">
+                        <div className="no-videos-illustration">
+                          <div className="illustration-icon">📹</div>
+                          <div className="illustration-bg"></div>
+                        </div>
+                        <h4>No Videos Found</h4>
+                        <p>
+                          {searchTerm 
+                            ? `No videos match "${searchTerm}"`
+                            : channel.error 
+                            ? 'Unable to load videos due to an error.' 
+                            : 'No videos were published in the selected time period.'
+                          }
+                        </p>
+                        {searchTerm && (
+                          <button 
+                            onClick={() => setSearchTerm('')}
+                            className="clear-search-btn-large"
+                          >
+                            Clear Search
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+
+              {/* Analytics Tab */}
+              {activeTab === 'analytics' && hasValidAnalytics && (
+                <div className="analytics-content">
+                  <ChannelAnalytics channel={channel} />
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>

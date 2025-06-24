@@ -273,7 +273,7 @@ export class DirectYouTubeAPI {
   }
 
   // ENHANCED: Calculate comprehensive individual channel analytics
-  static calculateChannelAnalytics(videos: any[], channelInfo: any): any {
+  static calculateChannelAnalytics(videos: any[], _channelInfo: any): any {
     if (!videos || videos.length === 0) {
       return {
         totalVideos: 0,

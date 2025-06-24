@@ -8,10 +8,9 @@ import {
   Tooltip,
   Legend,
   Filler,
-  TimeScale,
 } from 'chart.js';
 
-// Register ALL Chart.js components
+// Register Chart.js components ONCE
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -20,11 +19,9 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler,
-  TimeScale
+  Filler
 );
 
-// Define chart options without importing ChartOptions type
 export const defaultChartOptions = {
   responsive: true,
   maintainAspectRatio: false,

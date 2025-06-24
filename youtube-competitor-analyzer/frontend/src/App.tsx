@@ -11,7 +11,7 @@ import './App.css';
 
 function App() {
   const [channels, setChannels] = useState<string[]>([]);
-  const [timeWindow, setTimeWindow] = useState<7 | 15 | 30>(7);
+  const [timeWindow, setTimeWindow] = useState<number>(7); // Changed to number for 1-30 days
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResults, setAnalysisResults] = useState<AnalysisResponse | null>(null);
   const [error, setError] = useState<string>('');
@@ -23,18 +23,7 @@ function App() {
   useEffect(() => {
     if (analysisResults) {
       console.log('🔄 useEffect triggered - analysisResults changed:', analysisResults);
-      console.log('🔄 NEET Channels in results:', analysisResults.data?.channels);
       setForceRender(prev => prev + 1);
-      
-      setTimeout(() => {
-        console.log('🔄 DOM update forced');
-        const analysisSection = document.querySelector('.analysis-results');
-        if (analysisSection) {
-          console.log('✅ Analysis section found in DOM');
-        } else {
-          console.error('❌ Analysis section NOT found in DOM');
-        }
-      }, 100);
     }
   }, [analysisResults]);
 
@@ -45,7 +34,13 @@ function App() {
 
   const handleAnalyze = async () => {
     if (channels.length === 0) {
-      alert('Please add at least one NEET YouTube channel');
+      alert('Please select at least one NEET YouTube channel to analyze');
+      return;
+    }
+
+    // Validate time window
+    if (timeWindow < 1 || timeWindow > 30) {
+      alert('Please select a time window between 1 and 30 days');
       return;
     }
 
@@ -53,7 +48,7 @@ function App() {
     setError('');
     setAnalysisResults(null);
     
-    console.log(`🚀 FRONTEND - Starting NEET channel analysis (${timeWindow} days)...`);
+    console.log(`🚀 Starting NEET channel analysis (${timeWindow} days)...`);
 
     try {
       const channelResults: ChannelAnalysis[] = [];
@@ -64,7 +59,7 @@ function App() {
         
         try {
           const result = await DirectYouTubeAPI.analyzeChannel(channelUrl, timeWindow);
-          console.log(`📊 NEET channel analysis result for ${channelUrl}:`, result);
+          console.log(`📊 Analysis result for ${channelUrl}:`, result);
           
           if (result.success && result.channelInfo) {
             const channelData: ChannelAnalysis = {
@@ -79,7 +74,7 @@ function App() {
             channelResults.push(channelData);
             console.log(`✅ Added NEET channel data:`, channelData);
           } else {
-            console.warn(`⚠️ Invalid result for NEET channel ${channelUrl}:`, result);
+            console.warn(`⚠️ Invalid result for ${channelUrl}:`, result);
             const errorChannelData: ChannelAnalysis = {
               channelId: `error_${i}`,
               channelName: `Error: ${channelUrl}`,
@@ -90,7 +85,7 @@ function App() {
             channelResults.push(errorChannelData);
           }
         } catch (channelError) {
-          console.error(`❌ Error processing NEET channel ${channelUrl}:`, channelError);
+          console.error(`❌ Error processing ${channelUrl}:`, channelError);
           const errorChannelData: ChannelAnalysis = {
             channelId: `error_${i}`,
             channelName: `Error: ${channelUrl}`,
@@ -101,8 +96,6 @@ function App() {
           channelResults.push(errorChannelData);
         }
       }
-
-      console.log('📋 Final NEET channel results:', channelResults);
 
       const validChannels = channelResults.filter(hasValidAnalytics);
       const totalVideos = validChannels.reduce((sum, ch) => sum + (ch.analytics?.totalVideos || 0), 0);
@@ -147,12 +140,10 @@ function App() {
 
   const testConnection = async () => {
     try {
-      console.log('🧪 Testing direct YouTube API connection...');
+      console.log('🧪 Testing YouTube API connection...');
       const result = await DirectYouTubeAPI.quickTest();
-      console.log('Direct API test result:', result);
       alert(result);
     } catch (error) {
-      console.error('Direct API test failed:', error);
       alert(`❌ Connection test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
@@ -184,15 +175,37 @@ function App() {
                 duration: 'PT45M30S',
                 likeCount: 12500,
                 commentCount: 2800
+              },
+              {
+                videoId: 'neet_physics_2',
+                title: 'NEET Chemistry - Organic Reactions',
+                description: 'Complete organic chemistry reactions for NEET 2025.',
+                thumbnail: 'https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+                publishedAt: new Date(Date.now() - 86400000).toISOString(),
+                viewCount: 180000,
+                duration: 'PT38M15S',
+                likeCount: 9000,
+                commentCount: 1500
+              },
+              {
+                videoId: 'neet_physics_3',
+                title: 'NEET Biology - Cell Structure',
+                description: 'Cell structure and function for NEET biology.',
+                thumbnail: 'https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+                publishedAt: new Date(Date.now() - 172800000).toISOString(),
+                viewCount: 150000,
+                duration: 'PT42M20S',
+                likeCount: 7500,
+                commentCount: 1200
               }
             ],
             analytics: {
-              totalVideos: 1,
-              totalViews: 250000,
-              averageViews: 250000,
-              totalLikes: 12500,
-              totalComments: 2800,
-              engagementRate: 6.12,
+              totalVideos: 3,
+              totalViews: 580000,
+              averageViews: 193333,
+              totalLikes: 29000,
+              totalComments: 5500,
+              engagementRate: 5.94,
               mostPopularVideo: null,
               leastPopularVideo: null,
               uploadFrequency: '5 videos/week',
@@ -201,7 +214,9 @@ function App() {
               performanceScore: 92,
               topPerformingDays: ['Monday', 'Wednesday', 'Friday'],
               contentCategories: [
-                { category: 'Physics', count: 1, avgViews: 250000 }
+                { category: 'Physics', count: 1, avgViews: 250000 },
+                { category: 'Chemistry', count: 1, avgViews: 180000 },
+                { category: 'Biology', count: 1, avgViews: 150000 }
               ]
             },
             channelMetrics: {
@@ -220,23 +235,34 @@ function App() {
             videos: [
               {
                 videoId: 'neet_bio_1',
-                title: 'NEET Biology - Cell Structure and Function',
-                description: 'Complete biology chapter on cell structure for NEET preparation.',
+                title: 'NEET Biology - Genetics and Evolution',
+                description: 'Complete genetics chapter for NEET biology preparation.',
                 thumbnail: 'https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
                 publishedAt: new Date(Date.now() - 86400000).toISOString(),
-                viewCount: 180000,
-                duration: 'PT38M15S',
-                likeCount: 9000,
-                commentCount: 1500
+                viewCount: 120000,
+                duration: 'PT35M10S',
+                likeCount: 6000,
+                commentCount: 800
+              },
+              {
+                videoId: 'neet_bio_2',
+                title: 'NEET Physics - Thermodynamics',
+                description: 'Thermodynamics concepts for NEET physics.',
+                thumbnail: 'https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+                publishedAt: new Date(Date.now() - 172800000).toISOString(),
+                viewCount: 95000,
+                duration: 'PT40M25S',
+                likeCount: 4500,
+                commentCount: 600
               }
             ],
             analytics: {
-              totalVideos: 1,
-              totalViews: 180000,
-              averageViews: 180000,
-              totalLikes: 9000,
-              totalComments: 1500,
-              engagementRate: 5.83,
+              totalVideos: 2,
+              totalViews: 215000,
+              averageViews: 107500,
+              totalLikes: 10500,
+              totalComments: 1400,
+              engagementRate: 5.53,
               mostPopularVideo: null,
               leastPopularVideo: null,
               uploadFrequency: '4 videos/week',
@@ -245,7 +271,8 @@ function App() {
               performanceScore: 85,
               topPerformingDays: ['Tuesday', 'Thursday', 'Saturday'],
               contentCategories: [
-                { category: 'Biology', count: 1, avgViews: 180000 }
+                { category: 'Biology', count: 1, avgViews: 120000 },
+                { category: 'Physics', count: 1, avgViews: 95000 }
               ]
             },
             channelMetrics: {
@@ -260,10 +287,10 @@ function App() {
         ]
       },
       metadata: {
-        totalVideos: 2,
-        totalViews: 430000,
+        totalVideos: 5,
+        totalViews: 795000,
         processedAt: new Date().toISOString(),
-        timeWindow: 7,
+        timeWindow: timeWindow,
         usingDirectAPI: true,
         analysisType: 'neet_test',
         individualChannelCount: 2
@@ -274,153 +301,38 @@ function App() {
     setAnalysisResults(testData);
   };
 
-  const scrollToAnalytics = () => {
-    const analyticsSection = document.getElementById('analytics-section');
-    if (analyticsSection) {
-      analyticsSection.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
   return (
-    <div className="App">
-      {/* PROFESSIONAL HEADER */}
-      <header className="app-header-professional">
-        <div className="header-container">
-          <div className="header-brand">
-            <div className="brand-logo">
-              <span className="logo-icon">🎯</span>
-              <span className="logo-text">NEET Analytics</span>
-            </div>
-            <span className="brand-tagline">YouTube Competitor Intelligence</span>
-          </div>
-          
-          <nav className="header-nav">
-            <button 
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="nav-link"
-            >
-              Home
+    <div className="app-clean">
+      {/* Simple Top Bar */}
+      <div className="top-bar-minimal">
+        <div className="top-bar-content">
+          <h1 className="app-title-minimal">NEET YouTube Analytics</h1>
+          <div className="top-bar-actions">
+            <button onClick={testConnection} className="top-btn">
+              🧪 Test API
             </button>
-            <button 
-              onClick={scrollToAnalytics}
-              className="nav-link"
-            >
-              Analytics
+            <button onClick={createTestData} className="top-btn">
+              📊 Demo Data
             </button>
-            <button 
-              onClick={() => setDebugMode(!debugMode)}
-              className="nav-link"
-            >
+            <button onClick={() => setDebugMode(!debugMode)} className="top-btn">
               {debugMode ? 'Hide Debug' : 'Debug'}
             </button>
-          </nav>
-        </div>
-      </header>
-
-      {/* HERO SECTION */}
-      <section className="hero-section-professional">
-        <div className="hero-container">
-          <div className="hero-content">
-            <div className="hero-badge">
-              <span className="badge-icon">🏆</span>
-              <span className="badge-text">Professional NEET Analytics</span>
-            </div>
-            
-            <h1 className="hero-title">
-              Analyze Your <span className="highlight">NEET YouTube</span> Competition
-            </h1>
-            
-            <p className="hero-description">
-              Get comprehensive insights into competitor NEET channels, track performance trends, 
-              and optimize your educational content strategy with our advanced analytics platform.
-            </p>
-            
-            <div className="hero-stats">
-              <div className="stat-item">
-                <span className="stat-number">20+</span>
-                <span className="stat-label">NEET Channels</span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-number">Real-time</span>
-                <span className="stat-label">Analytics</span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-number">100%</span>
-                <span className="stat-label">Free Tool</span>
-              </div>
-            </div>
-            
-            <div className="hero-actions">
-              <button 
-                onClick={scrollToAnalytics}
-                className="cta-primary"
-              >
-                <span>Start Analysis</span>
-                <svg className="cta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
-              </button>
-              
-              <button 
-                onClick={createTestData}
-                className="cta-secondary"
-              >
-                <span>Try Demo</span>
-                <svg className="cta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <polygon points="5,3 19,12 5,21"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-          
-          <div className="hero-visual">
-            <div className="dashboard-preview">
-              <div className="preview-header">
-                <div className="preview-dots">
-                  <span className="dot red"></span>
-                  <span className="dot yellow"></span>
-                  <span className="dot green"></span>
-                </div>
-                <span className="preview-title">NEET Analytics Dashboard</span>
-              </div>
-              <div className="preview-content">
-                <div className="preview-chart">
-                  <div className="chart-bars">
-                    <div className="bar" style={{ height: '60%' }}></div>
-                    <div className="bar" style={{ height: '80%' }}></div>
-                    <div className="bar" style={{ height: '45%' }}></div>
-                    <div className="bar" style={{ height: '90%' }}></div>
-                    <div className="bar" style={{ height: '70%' }}></div>
-                  </div>
-                </div>
-                <div className="preview-metrics">
-                  <div className="metric">
-                    <span className="metric-label">Physics Wallah</span>
-                    <span className="metric-value">8.5M views</span>
-                  </div>
-                  <div className="metric">
-                    <span className="metric-label">Unacademy NEET</span>
-                    <span className="metric-value">3.2M views</span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
-      </section>
-
-      {/* MAIN CONTENT */}
-      <main className="app-main-professional" id="analytics-section">
-        {/* DEBUG SECTION */}
+      </div>
+      
+      <main className="main-content-clean">
+        {/* Debug Section */}
         {debugMode && (
-          <div className="debug-section-professional">
+          <div className="debug-section-minimal">
             <details className="debug-details">
               <summary className="debug-summary">🔍 Debug Information</summary>
               <div className="debug-content">
-                <p><strong>Force Render Counter:</strong> {forceRender}</p>
                 <p><strong>Analysis Results:</strong> {analysisResults ? 'YES' : 'NO'}</p>
                 <p><strong>Channels Count:</strong> {analysisResults?.data?.channels?.length || 'N/A'}</p>
                 <p><strong>Analysis Type:</strong> {analysisResults?.metadata?.analysisType || 'N/A'}</p>
+                <p><strong>Time Window:</strong> {timeWindow} days</p>
+                <p><strong>Force Render:</strong> {forceRender}</p>
                 <button 
                   onClick={() => console.log('Full debug:', analysisResults)}
                   className="debug-btn"
@@ -432,9 +344,9 @@ function App() {
           </div>
         )}
 
-        {/* ERROR HANDLING */}
+        {/* Error Display */}
         {error && (
-          <div className="error-section-professional">
+          <div className="error-section-minimal">
             <div className="error-content">
               <span className="error-icon">⚠️</span>
               <div className="error-text">
@@ -448,20 +360,15 @@ function App() {
           </div>
         )}
         
-        {/* ANALYSIS FORM */}
-        <section className="analysis-form-professional">
-          <div className="form-container">
-            <div className="form-header">
-              <h2>🎯 NEET Channel Analysis</h2>
-              <p>Select NEET YouTube channels and analyze their performance with advanced metrics</p>
-            </div>
-
-            <div className="form-content">
-              <ChannelSelector 
-                selectedChannels={channels} 
-                onChannelsChange={setChannels} 
-              />
-              
+        {/* Analysis Form */}
+        <section className="analysis-section-clean">
+          <div className="section-container">
+            <ChannelSelector 
+              selectedChannels={channels} 
+              onChannelsChange={setChannels} 
+            />
+            
+            <div className="analysis-controls">
               <TimeWindowSelector 
                 selectedWindow={timeWindow} 
                 onWindowChange={setTimeWindow} 
@@ -471,16 +378,17 @@ function App() {
                 <button 
                   onClick={handleAnalyze} 
                   disabled={isAnalyzing || channels.length === 0}
-                  className="analyze-btn-professional"
+                  className="analyze-btn-clean"
                 >
                   {isAnalyzing ? (
                     <>
-                      <span className="loading-spinner"></span>
-                      <span>Analyzing...</span>
+                      <span className="btn-spinner">🔄</span>
+                      Analyzing {timeWindow} days...
                     </>
                   ) : (
                     <>
-                      <span>🚀 Start Analysis</span>
+                      <span className="btn-icon">🚀</span>
+                      Start Analysis ({timeWindow} days)
                     </>
                   )}
                 </button>
@@ -488,36 +396,32 @@ function App() {
                 <button 
                   onClick={handleReset} 
                   disabled={isAnalyzing}
-                  className="reset-btn-professional"
+                  className="reset-btn-clean"
                 >
-                  🔄 Reset
-                </button>
-
-                <button 
-                  onClick={testConnection}
-                  className="test-btn-professional"
-                >
-                  🧪 Test API
+                  <span className="btn-icon">🔄</span>
+                  Reset
                 </button>
               </div>
 
               {analysisResults?.metadata && (
-                <div className="quick-stats-professional">
-                  <div className="stat-card">
-                    <span className="stat-number">{analysisResults.data?.channels?.length || 0}</span>
-                    <span className="stat-label">NEET Channels</span>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-number">{analysisResults.metadata.totalVideos || 0}</span>
-                    <span className="stat-label">Videos Analyzed</span>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-number">{formatNumber(analysisResults.metadata.totalViews || 0)}</span>
-                    <span className="stat-label">Total Views</span>
-                  </div>
-                  <div className="stat-card">
-                    <span className="stat-number">{analysisResults.metadata.timeWindow}</span>
-                    <span className="stat-label">Days Period</span>
+                <div className="analysis-summary-clean">
+                  <div className="summary-grid">
+                    <div className="summary-item">
+                      <span className="summary-number">{analysisResults.data?.channels?.length || 0}</span>
+                      <span className="summary-label">Channels</span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-number">{analysisResults.metadata.totalVideos || 0}</span>
+                      <span className="summary-label">Videos</span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-number">{formatNumber(analysisResults.metadata.totalViews || 0)}</span>
+                      <span className="summary-label">Views</span>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-number">{analysisResults.metadata.timeWindow}</span>
+                      <span className="summary-label">Days Period</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -525,136 +429,92 @@ function App() {
           </div>
         </section>
 
-        {/* ANALYTICS DASHBOARD */}
+        {/* Analytics Dashboard */}
         {analysisResults && analysisResults.data?.channels && analysisResults.data.channels.length > 0 && (
           <AnalyticsDashboard analysisResults={analysisResults} />
         )}
 
-        {/* CONTENT INTELLIGENCE */}
+        {/* Content Intelligence Section */}
         {showContentIntelligence && analysisResults && (
-          <div className="content-intelligence-section">
+          <section className="intelligence-section-clean">
             <ContentIntelligence analysisResults={analysisResults} />
-          </div>
+          </section>
         )}
 
-        {/* ANALYSIS RESULTS */}
+        {/* Results Section */}
         {analysisResults && (
-          <section className="analysis-results-professional">
-            <div className="results-container">
-              <div className="results-header">
-                <h2>📊 NEET Channel Analysis Results</h2>
-                <p>Comprehensive analysis of {analysisResults.data?.channels?.length || 0} NEET channels</p>
+          <section className="results-section-clean">
+            <div className="section-container">
+              <div className="section-header">
+                <h3 className="section-title">
+                  <span className="section-icon">📊</span>
+                  Analysis Results
+                </h3>
+                <div className="section-actions">
+                  <button 
+                    onClick={() => setShowContentIntelligence(!showContentIntelligence)}
+                    className="toggle-btn"
+                  >
+                    <span className="btn-icon">🧠</span>
+                    {showContentIntelligence ? 'Hide AI Insights' : 'Show AI Insights'}
+                  </button>
+                </div>
               </div>
               
+              {/* Results Summary */}
               {analysisResults.metadata && (
-                <div className="results-summary-professional">
-                  <div className="summary-grid">
-                    <div className="summary-item">
-                      <span className="summary-label">Analysis Type</span>
-                      <span className="summary-value">Individual NEET Channel Analysis</span>
-                    </div>
-                    <div className="summary-item">
-                      <span className="summary-label">Successful Analyses</span>
-                      <span className="summary-value">{analysisResults.data?.channels?.filter(hasValidAnalytics).length || 0}</span>
-                    </div>
-                    <div className="summary-item">
-                      <span className="summary-label">Time Period</span>
-                      <span className="summary-value">Last {analysisResults.metadata.timeWindow} days</span>
-                    </div>
-                    <div className="summary-item">
-                      <span className="summary-label">Processed</span>
-                      <span className="summary-value">{new Date(analysisResults.metadata.processedAt).toLocaleDateString()}</span>
+                <div className="results-summary-clean">
+                  <div className="summary-content">
+                    <h4>Analysis Summary</h4>
+                    <div className="summary-details">
+                      <p><strong>Analysis Type:</strong> Individual NEET YouTube Channel Analysis</p>
+                      <p><strong>Channels Analyzed:</strong> {analysisResults.data?.channels?.length || 0}</p>
+                      <p><strong>Successful Analyses:</strong> {analysisResults.data?.channels?.filter(hasValidAnalytics).length || 0}</p>
+                      <p><strong>Time Period:</strong> Last {analysisResults.metadata.timeWindow} days</p>
+                      <p><strong>Processed:</strong> {new Date(analysisResults.metadata.processedAt).toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
               )}
               
-              {/* COMPETITOR TRACKER */}
+              {/* Competitor Tracker */}
               {analysisResults && analysisResults.data?.channels && 
                analysisResults.data.channels.filter(hasValidAnalytics).length > 1 && (
                 <CompetitorTracker analysisResults={analysisResults} />
               )}
               
-              {/* INDIVIDUAL CHANNEL SECTIONS */}
+              {/* Individual Channel Results */}
               {analysisResults.data?.channels && Array.isArray(analysisResults.data.channels) ? (
-                <div className="channels-container-professional">
-                  <div className="channels-header">
-                    <h3>📋 Individual NEET Channel Analysis</h3>
-                    <p>Detailed analysis for each selected NEET channel with performance metrics and insights</p>
-                  </div>
-                  {analysisResults.data.channels.map((channel, index) => {
-                    console.log(`🎯 Rendering NEET ChannelSection ${index + 1} for:`, channel.channelName);
-                    
-                    return (
+                <div className="channels-results">
+                  <h4 className="channels-title">
+                    Individual Channel Analysis ({analysisResults.data.channels.length} Channels)
+                  </h4>
+                  <p className="channels-description">
+                    Each NEET channel below shows separate analytics including performance scores, 
+                    engagement metrics, and growth trends for the last {analysisResults.metadata?.timeWindow || timeWindow} days.
+                  </p>
+                  <div className="channels-grid">
+                    {analysisResults.data.channels.map((channel, index) => (
                       <ChannelSection 
                         key={`neet-channel-${index}-${forceRender}`}
                         channel={channel} 
                         channelIndex={index}
                         totalChannels={analysisResults.data!.channels.length}
                       />
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
               ) : (
-                <div className="no-results-professional">
+                <div className="no-results-clean">
                   <div className="no-results-icon">📊</div>
-                  <h3>No Valid NEET Channels Found</h3>
-                  <p>No NEET channel data was successfully analyzed. Please try different channels or check your API connection.</p>
-                  <button onClick={() => console.log('Empty results debug:', analysisResults)} className="debug-btn">
-                    Debug Results
-                  </button>
+                  <h4>No Analysis Results</h4>
+                  <p>No NEET channel data was successfully analyzed. Please try again with different channels.</p>
                 </div>
               )}
             </div>
           </section>
         )}
       </main>
-
-      {/* PROFESSIONAL FOOTER */}
-      <footer className="app-footer-professional">
-        <div className="footer-container">
-          <div className="footer-content">
-            <div className="footer-brand">
-              <div className="brand-logo">
-                <span className="logo-icon">🎯</span>
-                <span className="logo-text">NEET Analytics</span>
-              </div>
-              <p className="footer-description">
-                Professional YouTube analytics platform designed specifically for NEET educators and content creators.
-              </p>
-            </div>
-            
-            <div className="footer-links">
-              <div className="footer-section">
-                <h4>Features</h4>
-                <ul>
-                  <li>Channel Analysis</li>
-                  <li>Competitor Tracking</li>
-                  <li>Performance Metrics</li>
-                  <li>Content Intelligence</li>
-                </ul>
-              </div>
-              
-              <div className="footer-section">
-                <h4>Resources</h4>
-                <ul>
-                  <li>API Documentation</li>
-                  <li>User Guide</li>
-                  <li>Best Practices</li>
-                  <li>Support</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          
-          <div className="footer-bottom">
-            <p>&copy; 2025 NEET Analytics. Built for NEET educators worldwide.</p>
-            <div className="footer-social">
-              <span>Made with ❤️ for NEET Education</span>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { format, parseISO, startOfDay, eachDayOfInterval, subDays } from 'date-fns';
+import { format, parseISO, eachDayOfInterval, subDays } from 'date-fns';
 import type { VideoData, ChannelAnalysis } from '../types/youtube';
 
 export interface TimeSeriesPoint {
