@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "youtube-competitor-backend",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-06-19",
+  "vars": {
+    "ENVIRONMENT": "development"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "YOUTUBE_ANALYSIS_KV",
+      "id": "a7fdfa1965ee418bb06d6a2bfb52c09e",
+      "preview_id": "61a966e5b65743e8bb452e66d85f36fb"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
