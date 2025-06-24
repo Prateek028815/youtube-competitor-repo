@@ -11,6 +11,28 @@ export class DirectYouTubeAPI {
     }
   }
 
+  static async testConnection(): Promise<boolean> {
+    try {
+      this.validateApiKey();
+      console.log('🧪 Testing YouTube API connection...');
+      
+      const response = await fetch(
+        `${YOUTUBE_BASE_URL}/search?part=snippet&type=channel&q=test&maxResults=1&key=${YOUTUBE_API_KEY}`
+      );
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`API test failed: ${error.error?.message || response.statusText}`);
+      }
+      
+      console.log('✅ YouTube API connection successful');
+      return true;
+    } catch (error) {
+      console.error('YouTube API connection test failed:', error);
+      throw error;
+    }
+  }
+
   static extractChannelId(channelUrl: string): string | null {
     const patterns = [
       /youtube\.com\/channel\/([a-zA-Z0-9_-]+)/,
@@ -250,7 +272,7 @@ export class DirectYouTubeAPI {
     }
   }
 
-  // Calculate comprehensive individual channel analytics
+  // ENHANCED: Calculate comprehensive individual channel analytics
   static calculateChannelAnalytics(videos: any[], _channelInfo: any): any {
     if (!videos || videos.length === 0) {
       return {
@@ -403,8 +425,8 @@ export class DirectYouTubeAPI {
     try {
       console.log(`🧪 Starting individual analysis for: ${channelUrl} (${timeWindowDays} days)`);
       
-      this.validateApiKey();
-      console.log('✅ API key validated');
+      await this.testConnection();
+      console.log('✅ API connection verified');
       
       let channelId = this.extractChannelId(channelUrl);
       console.log('🔍 Extracted channel ID:', channelId);
@@ -463,6 +485,15 @@ export class DirectYouTubeAPI {
       };
       console.log('❌ Error result:', errorResult);
       return errorResult;
+    }
+  }
+
+  static async quickTest(): Promise<string> {
+    try {
+      await this.testConnection();
+      return '✅ YouTube API connection successful!';
+    } catch (error) {
+      return `❌ YouTube API failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
     }
   }
 }

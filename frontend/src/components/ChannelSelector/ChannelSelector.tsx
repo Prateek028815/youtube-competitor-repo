@@ -27,8 +27,22 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
+  // Default channels that are pre-selected but can be removed
+  const defaultChannels = [
+    'https://www.youtube.com/@CompetitionWallah',
+    'https://www.youtube.com/@UnacademyNEET', 
+    'https://www.youtube.com/@VedantuNEET'
+  ];
+
   useEffect(() => {
     loadCompetitorData();
+  }, []);
+
+  // Set default channels on initial load only if no channels are selected
+  useEffect(() => {
+    if (selectedChannels.length === 0) {
+      onChannelsChange(defaultChannels);
+    }
   }, []);
 
   const loadCompetitorData = async () => {
@@ -78,8 +92,30 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({
     return filtered;
   };
 
+  const validateYouTubeURL = (url: string): boolean => {
+    const patterns = [
+      /^https?:\/\/(www\.)?youtube\.com\/@[\w-]+/,
+      /^https?:\/\/(www\.)?youtube\.com\/c\/[\w-]+/,
+      /^https?:\/\/(www\.)?youtube\.com\/channel\/[\w-]+/,
+      /^https?:\/\/(www\.)?youtube\.com\/user\/[\w-]+/
+    ];
+    
+    return patterns.some(pattern => pattern.test(url));
+  };
+
   const addChannel = (channelUrl: string) => {
+    if (!channelUrl.trim()) {
+      alert('Please enter a valid YouTube channel URL');
+      return;
+    }
+
+    if (!validateYouTubeURL(channelUrl)) {
+      alert('Please enter a valid YouTube channel URL format');
+      return;
+    }
+
     if (selectedChannels.includes(channelUrl)) {
+      alert('This channel is already added');
       return;
     }
     
@@ -94,23 +130,6 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({
     console.log('🗑️ NEET Channel removed:', channelUrl);
   };
 
-  const addRandomChannels = (count: number) => {
-    if (!competitorData) return;
-    
-    const availableChannels = competitorData.channels.filter(ch => 
-      !selectedChannels.includes(ch.url)
-    );
-    
-    const randomChannels = availableChannels
-      .sort(() => Math.random() - 0.5)
-      .slice(0, count)
-      .map(ch => ch.url);
-    
-    const updatedChannels = [...selectedChannels, ...randomChannels];
-    onChannelsChange(updatedChannels);
-    console.log(`✅ Added ${randomChannels.length} random NEET channels`);
-  };
-
   const getChannelDisplayName = (channelId: string): string => {
     return channelId
       .replace(/-/g, ' ')
@@ -119,6 +138,19 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({
 
   const getChannelData = (url: string) => {
     return competitorData?.channels.find(ch => ch.url === url);
+  };
+
+  const getChannelName = (url: string): string => {
+    if (url.includes('CompetitionWallah')) return 'Competition Wallah';
+    if (url.includes('UnacademyNEET')) return 'Unacademy NEET';
+    if (url.includes('VedantuNEET')) return 'Vedantu NEET';
+    
+    const channelData = getChannelData(url);
+    return channelData ? getChannelDisplayName(channelData.id) : url;
+  };
+
+  const isDefaultChannel = (url: string): boolean => {
+    return defaultChannels.includes(url);
   };
 
   const filteredChannels = getFilteredChannels();
@@ -157,9 +189,9 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({
           <div className="header-main">
             <div className="header-icon">📺</div>
             <div className="header-text">
-              <h2 className="selector-title">Select NEET YouTube Channels</h2>
+              <h2 className="selector-title">NEET YouTube Channels</h2>
               <p className="selector-subtitle">
-                Choose from {competitorData?.channels.length || 0} curated NEET education channels
+                Default channels pre-selected. Add more from {competitorData?.channels.length || 0} available channels or add custom URLs.
               </p>
             </div>
           </div>
@@ -168,16 +200,12 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({
               <span className="stat-number">{selectedChannels.length}</span>
               <span className="stat-label">Selected</span>
             </div>
-            <div className="stat-badge">
-              <span className="stat-number">{filteredChannels.length}</span>
-              <span className="stat-label">Available</span>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Search and Filter Section */}
-      <div className="search-filter-compact">
+      {/* Search and Add More Channels */}
+      <div className="add-channels-section">
         <div className="search-controls">
           <div className="search-input-wrapper">
             <div className="search-icon">🔍</div>
@@ -185,41 +213,57 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search NEET channels..."
+              placeholder="Search to add more channels..."
               className="search-input-compact"
             />
-            {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')}
-                className="clear-search-btn"
-              >
-                ✕
-              </button>
-            )}
           </div>
-          
-          <select 
-            value={filterCategory} 
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="category-filter-compact"
-          >
-            <option value="all">All Categories</option>
-            <option value="physics">Physics</option>
-            <option value="chemistry">Chemistry</option>
-            <option value="biology">Biology</option>
-            <option value="general">General NEET</option>
-          </select>
         </div>
-      </div>
 
-      {/* Dropdown Channel Selection */}
-      <div className="channel-dropdown-section">
-        <div className="dropdown-header">
-          <h4>Available NEET Channels</h4>
-          <span className="channel-count">{filteredChannels.length} channels</span>
+        {/* Custom URL Input Section */}
+        <div className="custom-url-section">
+          <div className="custom-url-header">
+            <span className="custom-url-icon">🔗</span>
+            <span className="custom-url-title">Add Custom YouTube Channel</span>
+          </div>
+          <div className="custom-url-input-wrapper">
+            <input
+              type="text"
+              placeholder="Paste YouTube channel URL here (e.g., https://www.youtube.com/@channelname)"
+              className="custom-url-input"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  const url = (e.target as HTMLInputElement).value.trim();
+                  if (url) {
+                    addChannel(url);
+                    (e.target as HTMLInputElement).value = '';
+                  }
+                }
+              }}
+            />
+            <button 
+              className="add-url-btn"
+              onClick={() => {
+                const input = document.querySelector('.custom-url-input') as HTMLInputElement;
+                const url = input?.value.trim();
+                if (url) {
+                  addChannel(url);
+                  input.value = '';
+                }
+              }}
+            >
+              ➕ Add
+            </button>
+          </div>
+          <div className="url-format-hint">
+            <span className="hint-icon">💡</span>
+            <span className="hint-text">
+              Supported formats: youtube.com/@channel, youtube.com/c/channel, youtube.com/channel/ID
+            </span>
+          </div>
         </div>
-        
-        <div className="channel-dropdown-container">
+
+        {/* One-Click Dropdown - Auto-add on selection */}
+        <div className="channel-dropdown-section">
           <select 
             value=""
             onChange={(e) => {
@@ -228,9 +272,9 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({
                 e.target.value = ''; // Reset dropdown
               }
             }}
-            className="channel-dropdown"
+            className="channel-dropdown-oneclick"
           >
-            <option value="">Select a NEET channel to add...</option>
+            <option value="">+ Add from preset NEET channels...</option>
             {filteredChannels
               .filter(channel => !selectedChannels.includes(channel.url))
               .map((channel) => (
@@ -241,109 +285,32 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({
               ))
             }
           </select>
-          
-          <button 
-            onClick={() => {
-              const customUrl = prompt('Enter YouTube channel URL:');
-              if (customUrl && customUrl.trim()) {
-                if (!selectedChannels.includes(customUrl.trim())) {
-                  addChannel(customUrl.trim());
-                } else {
-                  alert('Channel already selected!');
-                }
-              }
-            }}
-            className="add-custom-btn"
-          >
-            🔗 Add Custom
-          </button>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="quick-actions-compact">
-        <div className="primary-actions">
-          <select 
-            onChange={(e) => {
-              const action = e.target.value;
-              if (action === 'random3') addRandomChannels(3);
-              else if (action === 'random5') addRandomChannels(5);
-              else if (action === 'custom') {
-                const customUrl = prompt('Enter YouTube channel URL:');
-                if (customUrl && customUrl.trim()) {
-                  if (selectedChannels.includes(customUrl.trim())) {
-                    alert('This channel is already selected!');
-                    return;
-                  }
-                  addChannel(customUrl.trim());
-                }
-              }
-              e.target.value = ''; // Reset dropdown
-            }}
-            className="quick-action-dropdown"
-            disabled={!competitorData}
-          >
-            <option value="">Quick Actions...</option>
-            <option value="random3">🎲 Add 3 Random Channels</option>
-            <option value="random5">🎯 Add Top 5 Channels</option>
-            <option value="custom">🔗 Add Custom URL</option>
-          </select>
-          
-          <button 
-            onClick={() => onChannelsChange([])}
-            className="clear-all-btn"
-            disabled={selectedChannels.length === 0}
-            title="Clear all selected channels"
-          >
-            🗑️ Clear All
-          </button>
-        </div>
-        
-        <div className="selection-info">
-          <span className="selection-count">
-            {selectedChannels.length} of {competitorData?.channels.length || 0} selected
-          </span>
+      {/* Compact Selected Channels Display - No Header */}
+      <div className="selected-channels-minimal">
+        <div className="selected-channels-grid-minimal">
+          {selectedChannels.map((channelUrl, index) => {
+            const displayName = getChannelName(channelUrl);
+            const isDefault = isDefaultChannel(channelUrl);
+            
+            return (
+              <div key={index} className={`channel-chip-minimal ${isDefault ? 'default' : ''}`}>
+                <span className="chip-number">#{index + 1}</span>
+                <span className="chip-name">{displayName}</span>
+                <button 
+                  onClick={() => removeChannel(channelUrl)}
+                  className="chip-remove-btn"
+                  title="Remove channel"
+                >
+                  ✕
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
-
-      {/* Selected Channels Summary */}
-      {selectedChannels.length > 0 && (
-        <div className="selected-summary-compact">
-          <div className="summary-header">
-            <h3>
-              <span className="summary-icon">✅</span>
-              Selected Channels ({selectedChannels.length})
-            </h3>
-            <div className="summary-status">Ready for Analysis</div>
-          </div>
-          
-          <div className="selected-channels-list-compact">
-            {selectedChannels.map((channelUrl, index) => {
-              const channelData = getChannelData(channelUrl);
-              const displayName = channelData ? 
-                getChannelDisplayName(channelData.id) : 
-                channelUrl;
-              
-              return (
-                <div key={index} className="selected-channel-item-compact">
-                  <div className="item-number">#{index + 1}</div>
-                  <div className="item-info">
-                    <span className="item-name">{displayName}</span>
-                    <span className="item-url">{channelUrl}</span>
-                  </div>
-                  <button 
-                    onClick={() => removeChannel(channelUrl)}
-                    className="remove-item-btn"
-                    title="Remove channel"
-                  >
-                    ✕
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

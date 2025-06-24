@@ -1,0 +1,84 @@
+{
+  "channels": [
+    {
+      "id": "physics-wallah",
+      "url": "https://www.youtube.com/@PhysicsWallah"
+    },
+    {
+      "id": "unacademy-neet",
+      "url": "https://www.youtube.com/@UnacademyNEET"
+    },
+    {
+      "id": "vedantu-neet",
+      "url": "https://www.youtube.com/@VedantuNEET"
+    },
+    {
+      "id": "aakash-institute",
+      "url": "https://www.youtube.com/@AakashInstitute"
+    },
+    {
+      "id": "allen-career",
+      "url": "https://www.youtube.com/@ALLENCareerInstitute"
+    },
+    {
+      "id": "embibe-neet",
+      "url": "https://www.youtube.com/@EmbibeNEET"
+    },
+    {
+      "id": "neet-prep",
+      "url": "https://www.youtube.com/@NEETPrep"
+    },
+    {
+      "id": "byju-neet",
+      "url": "https://www.youtube.com/@BYJUSNEET"
+    },
+    {
+      "id": "etoos-education",
+      "url": "https://www.youtube.com/@EtoosEducation"
+    },
+    {
+      "id": "doubtnut",
+      "url": "https://www.youtube.com/@Doubtnut"
+    },
+    {
+      "id": "toppr-neet",
+      "url": "https://www.youtube.com/@TopprNEET"
+    },
+    {
+      "id": "career-point",
+      "url": "https://www.youtube.com/@CareerPoint"
+    },
+    {
+      "id": "resonance-neet",
+      "url": "https://www.youtube.com/@ResonanceNEET"
+    },
+    {
+      "id": "motion-education",
+      "url": "https://www.youtube.com/@MotionEducation"
+    },
+    {
+      "id": "neet-biology",
+      "url": "https://www.youtube.com/@NEETBiology"
+    },
+    {
+      "id": "neet-chemistry",
+      "url": "https://www.youtube.com/@NEETChemistry"
+    },
+    {
+      "id": "neet-physics",
+      "url": "https://www.youtube.com/@NEETPhysics"
+    },
+    {
+      "id": "pw-neet",
+      "url": "https://www.youtube.com/@PWNEET"
+    },
+    {
+      "id": "study-iq-neet",
+      "url": "https://www.youtube.com/@StudyIQNEET"
+    },
+    {
+      "id": "khan-academy-neet",
+      "url": "https://www.youtube.com/@KhanAcademyNEET"
+    }
+  ]
+}

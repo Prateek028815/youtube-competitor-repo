@@ -56,17 +56,15 @@ export const CompetitorTracker: React.FC<CompetitorTrackerProps> = ({ analysisRe
   }
 
   return (
-    <div className="competitor-tracker-enhanced">
-      <div className="tracker-header-enhanced">
-        <div className="header-content-enhanced">
-          <h3 className="tracker-title-enhanced">🏆 Competitor Performance Tracker</h3>
-          <p className="tracker-subtitle-enhanced">
-            Ranking of {competitorData.length} NEET channels by performance score
-          </p>
-        </div>
+    <div className="competitor-tracker-horizontal">
+      <div className="tracker-header-horizontal">
+        <h3 className="tracker-title-horizontal">🏆 Competitor Performance Ranking</h3>
+        <p className="tracker-subtitle-horizontal">
+          Top {competitorData.length} NEET channels by performance score
+        </p>
       </div>
 
-      <div className="competitor-leaderboard">
+      <div className="competitor-cards-horizontal">
         {competitorData.map((competitor, index) => {
           const performance = getPerformanceColor(competitor.performanceScore);
           const trend = getTrendIcon(competitor.growthTrend);
@@ -75,84 +73,63 @@ export const CompetitorTracker: React.FC<CompetitorTrackerProps> = ({ analysisRe
           return (
             <div 
               key={competitor.name} 
-              className={`competitor-card-enhanced ${isTopPerformer ? 'top-performer' : ''}`}
+              className={`competitor-card-horizontal ${isTopPerformer ? 'top-performer' : ''}`}
             >
-              <div className="competitor-rank-section">
-                <div className={`rank-badge ${index < 3 ? 'podium' : ''}`}>
-                  <span className="rank-number">#{index + 1}</span>
-                  {index === 0 && <span className="crown">👑</span>}
+              <div className="rank-section-horizontal">
+                <div className={`rank-badge-horizontal ${index < 3 ? 'podium' : ''}`}>
+                  <span className="rank-number-horizontal">#{index + 1}</span>
+                  {index === 0 && <span className="crown-horizontal">👑</span>}
                 </div>
               </div>
 
-              <div className="competitor-info-section">
-                <div className="competitor-header">
-                  <h4 className="competitor-name">{competitor.name}</h4>
-                  <div 
-                    className="performance-badge-enhanced"
-                    style={{
-                      backgroundColor: performance.bg,
-                      borderColor: performance.border,
-                      color: performance.text
-                    }}
-                  >
-                    {performance.badge}
-                  </div>
-                </div>
-
-                <div className="competitor-metrics-grid">
-                  <div className="metric-item-enhanced subscribers">
-                    <div className="metric-icon">👥</div>
-                    <div className="metric-content">
-                      <div className="metric-value">{formatNumber(competitor.subscribers)}</div>
-                      <div className="metric-label">Subscribers</div>
-                    </div>
-                  </div>
-
-                  <div className="metric-item-enhanced views">
-                    <div className="metric-icon">👁️</div>
-                    <div className="metric-content">
-                      <div className="metric-value">{formatNumber(competitor.totalViews)}</div>
-                      <div className="metric-label">Total Views</div>
-                    </div>
-                  </div>
-
-                  <div className="metric-item-enhanced engagement">
-                    <div className="metric-icon">💬</div>
-                    <div className="metric-content">
-                      <div className="metric-value">{competitor.engagementRate.toFixed(1)}%</div>
-                      <div className="metric-label">Engagement</div>
-                    </div>
-                  </div>
-
-                  <div className="metric-item-enhanced videos">
-                    <div className="metric-icon">📹</div>
-                    <div className="metric-content">
-                      <div className="metric-value">{competitor.videoCount}</div>
-                      <div className="metric-label">Videos</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="competitor-performance-section">
-                <div className="performance-score-container">
-                  <div className="score-circle" style={{ borderColor: performance.border }}>
-                    <span className="score-value" style={{ color: performance.text }}>
-                      {competitor.performanceScore}
-                    </span>
-                  </div>
-                  <div className="score-label">Performance Score</div>
-                </div>
-
+              <div className="channel-info-horizontal">
+                <h4 className="channel-name-horizontal">{competitor.name}</h4>
                 <div 
-                  className="trend-indicator"
+                  className="performance-badge-horizontal"
+                  style={{
+                    backgroundColor: performance.bg,
+                    borderColor: performance.border,
+                    color: performance.text
+                  }}
+                >
+                  {performance.badge}
+                </div>
+              </div>
+
+              <div className="metrics-section-horizontal">
+                <div className="metric-horizontal">
+                  <span className="metric-icon-horizontal">👥</span>
+                  <span className="metric-value-horizontal">{formatNumber(competitor.subscribers)}</span>
+                  <span className="metric-label-horizontal">Subscribers</span>
+                </div>
+
+                <div className="metric-horizontal">
+                  <span className="metric-icon-horizontal">👁️</span>
+                  <span className="metric-value-horizontal">{formatNumber(competitor.totalViews)}</span>
+                  <span className="metric-label-horizontal">Views</span>
+                </div>
+
+                <div className="metric-horizontal">
+                  <span className="metric-icon-horizontal">💬</span>
+                  <span className="metric-value-horizontal">{competitor.engagementRate.toFixed(1)}%</span>
+                  <span className="metric-label-horizontal">Engagement</span>
+                </div>
+              </div>
+
+              <div className="score-section-horizontal">
+                <div className="score-circle-horizontal" style={{ borderColor: performance.border }}>
+                  <span className="score-value-horizontal" style={{ color: performance.text }}>
+                    {competitor.performanceScore}
+                  </span>
+                </div>
+                <div 
+                  className="trend-indicator-horizontal"
                   style={{ 
                     backgroundColor: trend.bg,
                     color: trend.color
                   }}
                 >
-                  <span className="trend-icon">{trend.icon}</span>
-                  <span className="trend-text">{competitor.growthTrend}</span>
+                  <span className="trend-icon-horizontal">{trend.icon}</span>
                 </div>
               </div>
             </div>
