@@ -1,31 +1,31 @@
 import React, { useState } from 'react';
-import { VideoCard } from '../VideoCard/VideoCard';
-import { ChannelHeader } from '../ChannelHeader/ChannelHeader';
-import { ChannelAnalytics } from '../ChannelAnalytics/ChannelAnalytics';
-import type { ChannelAnalysis } from '../../types/youtube';
+import type { ChannelAnalysis, VideoData } from '../../types/youtube';
 
 interface ChannelSectionProps {
   channel: ChannelAnalysis;
   channelIndex: number;
   totalChannels: number;
+  autoExpand?: boolean;
+  allChannels?: ChannelAnalysis[];
 }
 
 export const ChannelSection: React.FC<ChannelSectionProps> = ({ 
   channel, 
   channelIndex, 
-  totalChannels 
+  totalChannels,
+  autoExpand = false,
+  allChannels = []
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'videos' | 'analytics'>('overview');
-  const [sortBy, setSortBy] = useState<'views' | 'date' | 'engagement'>('views');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [isExpanded, setIsExpanded] = useState(autoExpand);
+  const [selectedVideo, setSelectedVideo] = useState<VideoData | null>(null);
+  const [videoFilter, setVideoFilter] = useState<'all' | 'long' | 'shorts'>('all');
 
   console.log(`🔍 ChannelSection rendering:`, {
     channelName: channel?.channelName,
     videosCount: channel?.videos?.length,
     channelIndex,
-    isExpanded
+    isExpanded,
+    autoExpand
   });
 
   if (!channel) {
@@ -40,41 +40,6 @@ export const ChannelSection: React.FC<ChannelSectionProps> = ({
       </div>
     );
   }
-
-  const getSortedVideos = () => {
-    if (!channel.videos || !Array.isArray(channel.videos)) {
-      return [];
-    }
-    
-    let videos = [...channel.videos];
-    
-    // Filter by search term
-    if (searchTerm) {
-      videos = videos.filter(video => 
-        video.title.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    // Sort videos
-    switch (sortBy) {
-      case 'views':
-        return videos.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
-      case 'date':
-        return videos.sort((a, b) => {
-          const dateA = new Date(a.publishedAt || 0).getTime();
-          const dateB = new Date(b.publishedAt || 0).getTime();
-          return dateB - dateA;
-        });
-      case 'engagement':
-        return videos.sort((a, b) => {
-          const aEng = a.viewCount > 0 ? ((a.likeCount || 0) + (a.commentCount || 0)) / a.viewCount : 0;
-          const bEng = b.viewCount > 0 ? ((b.likeCount || 0) + (b.commentCount || 0)) / b.viewCount : 0;
-          return bEng - aEng;
-        });
-      default:
-        return videos;
-    }
-  };
 
   const getPerformanceData = () => {
     if (!channel.analytics) {
@@ -118,14 +83,83 @@ export const ChannelSection: React.FC<ChannelSectionProps> = ({
     };
   };
 
-  const getTopVideos = () => {
-    return getSortedVideos().slice(0, 3);
-  };
-
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return Math.round(num).toLocaleString();
+  };
+
+  const formatDuration = (duration: string): string => {
+    if (!duration) return '0:00';
+    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!match) return duration;
+    
+    const [, hours, minutes, seconds] = match;
+    const h = parseInt(hours || '0');
+    const m = parseInt(minutes || '0');
+    const s = parseInt(seconds || '0');
+    
+    if (h > 0) {
+      return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const getDurationInSeconds = (duration: string): number => {
+    if (!duration) return 0;
+    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!match) return 0;
+    
+    const [, hours, minutes, seconds] = match;
+    const h = parseInt(hours || '0');
+    const m = parseInt(minutes || '0');
+    const s = parseInt(seconds || '0');
+    
+    return h * 3600 + m * 60 + s;
+  };
+
+  const isShortVideo = (video: VideoData): boolean => {
+    const durationInSeconds = getDurationInSeconds(video.duration || '');
+    return durationInSeconds <= 60; // YouTube Shorts are 60 seconds or less
+  };
+
+  const categorizeVideos = () => {
+    if (!channel.videos) return { longVideos: [], shorts: [] };
+    
+    const longVideos = channel.videos.filter(video => !isShortVideo(video));
+    const shorts = channel.videos.filter(video => isShortVideo(video));
+    
+    return { longVideos, shorts };
+  };
+
+  const getFilteredVideos = () => {
+    const { longVideos, shorts } = categorizeVideos();
+    
+    switch (videoFilter) {
+      case 'long':
+        return longVideos.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+      case 'shorts':
+        return shorts.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+      default:
+        return [...longVideos, ...shorts].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+    }
+  };
+
+  const getTimeSince = (dateString: string): string => {
+    if (!dateString) return 'Unknown';
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffTime = Math.abs(now.getTime() - date.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays < 7) return `${diffDays}d ago`;
+      if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+      if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
+      return `${Math.floor(diffDays / 365)}y ago`;
+    } catch {
+      return 'Unknown';
+    }
   };
 
   const calculateChannelAverage = (): number => {
@@ -134,11 +168,23 @@ export const ChannelSection: React.FC<ChannelSectionProps> = ({
     return Math.round(totalViews / channel.videos.length);
   };
 
+  const getVideoPerformance = (video: VideoData, channelAverage: number): { percentage: number; status: string; color: string } => {
+    if (channelAverage === 0) return { percentage: 0, status: 'No Data', color: '#64748b' };
+    
+    const performance = (video.viewCount / channelAverage) * 100;
+    
+    if (performance >= 200) return { percentage: Math.round(performance), status: 'Viral', color: '#dc2626' };
+    if (performance >= 150) return { percentage: Math.round(performance), status: 'Excellent', color: '#10b981' };
+    if (performance >= 100) return { percentage: Math.round(performance), status: 'Above Average', color: '#f59e0b' };
+    if (performance >= 50) return { percentage: Math.round(performance), status: 'Average', color: '#6366f1' };
+    return { percentage: Math.round(performance), status: 'Below Average', color: '#64748b' };
+  };
+
   const hasValidAnalytics = !!(channel.analytics && channel.channelMetrics);
-  const sortedVideos = getSortedVideos();
-  const topVideos = getTopVideos();
   const performanceData = getPerformanceData();
   const channelAverage = calculateChannelAverage();
+  const filteredVideos = getFilteredVideos();
+  const { longVideos, shorts } = categorizeVideos();
 
   return (
     <div className="modern-channel-card">
@@ -173,45 +219,6 @@ export const ChannelSection: React.FC<ChannelSectionProps> = ({
                 </div>
               )}
             </div>
-            
-            {/* Quick Metrics */}
-            <div className="quick-metrics-modern">
-              <div className="metric-item-modern">
-                <div className="metric-icon">📹</div>
-                <div className="metric-content">
-                  <span className="metric-value">{channel.videos?.length || 0}</span>
-                  <span className="metric-label">Videos</span>
-                </div>
-              </div>
-              
-              {hasValidAnalytics && channel.analytics && (
-                <>
-                  <div className="metric-item-modern">
-                    <div className="metric-icon">👁️</div>
-                    <div className="metric-content">
-                      <span className="metric-value">{formatNumber(channel.analytics.totalViews)}</span>
-                      <span className="metric-label">Total Views</span>
-                    </div>
-                  </div>
-                  
-                  <div className="metric-item-modern">
-                    <div className="metric-icon">💬</div>
-                    <div className="metric-content">
-                      <span className="metric-value">{channel.analytics.engagementRate.toFixed(1)}%</span>
-                      <span className="metric-label">Engagement</span>
-                    </div>
-                  </div>
-                  
-                  <div className="metric-item-modern">
-                    <div className="metric-icon">📊</div>
-                    <div className="metric-content">
-                      <span className="metric-value">{formatNumber(channelAverage)}</span>
-                      <span className="metric-label">Avg Views</span>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
           </div>
           
           {/* Expand Button */}
@@ -240,249 +247,495 @@ export const ChannelSection: React.FC<ChannelSectionProps> = ({
         )}
       </div>
 
-      {/* Expandable Content */}
-      <div className={`expandable-content-modern ${isExpanded ? 'expanded' : 'collapsed'}`}>
-        {isExpanded && (
+      {/* Enhanced Quick Stats Row - Horizontal Layout (No Score) */}
+      <div className="quick-stats-row-horizontal">
+        {hasValidAnalytics && channel.analytics ? (
           <>
-            {/* Tab Navigation */}
-            <div className="tab-navigation-modern">
-              <div className="tab-container">
-                <button 
-                  className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('overview')}
-                >
-                  <span className="tab-icon">📊</span>
-                  <span className="tab-text">Overview</span>
-                </button>
-                
-                <button 
-                  className={`tab-btn ${activeTab === 'videos' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('videos')}
-                >
-                  <span className="tab-icon">📹</span>
-                  <span className="tab-text">Videos ({channel.videos?.length || 0})</span>
-                </button>
-                
-                <button 
-                  className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('analytics')}
-                  disabled={!hasValidAnalytics}
-                >
-                  <span className="tab-icon">📈</span>
-                  <span className="tab-text">Analytics</span>
-                </button>
+            {/* Channel Actions Row */}
+            <div className="channel-actions-row">
+              <a 
+                href={channel.channelUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="channel-link-btn-compact"
+                title="Visit YouTube Channel"
+              >
+                🔗 Visit Channel
+              </a>
+              
+              <div className="ranking-badge-compact">
+                <span className="ranking-icon">🏆</span>
+                <span className="ranking-text">Rank #{channelIndex + 1}/{totalChannels}</span>
               </div>
             </div>
 
-            {/* Tab Content */}
-            <div className="tab-content-modern">
-              {/* Overview Tab */}
-              {activeTab === 'overview' && (
-                <div className="overview-content">
-                  {/* Channel Header */}
-                  <ChannelHeader channel={channel} />
-                  
-                  {/* Top Videos Section */}
-                  <div className="top-videos-section">
-                    <div className="section-header">
-                      <h4 className="section-title">
-                        <span className="section-icon">🏆</span>
-                        Top Performing Videos
-                      </h4>
-                      <button 
-                        onClick={() => setActiveTab('videos')}
-                        className="view-all-btn"
-                      >
-                        View All ({channel.videos?.length || 0})
-                      </button>
-                    </div>
-                    
-                    <div className="top-videos-grid">
-                      {topVideos.length > 0 ? (
-                        topVideos.map((video, index) => (
-                          <div key={video.videoId} className="top-video-card">
-                            <div className="video-rank-badge">#{index + 1}</div>
-                            <div className="video-thumbnail-wrapper">
-                              {video.thumbnail ? (
-                                <img 
-                                  src={video.thumbnail} 
-                                  alt={video.title}
-                                  className="video-thumbnail-small"
-                                />
-                              ) : (
-                                <div className="thumbnail-placeholder-small">
-                                  <span>📹</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="video-info-compact">
-                              <h5 className="video-title-compact">{video.title}</h5>
-                              <div className="video-stats-compact">
-                                <span className="stat-compact">
-                                  👁️ {formatNumber(video.viewCount)}
-                                </span>
-                                <span className="stat-compact">
-                                  👍 {formatNumber(video.likeCount || 0)}
-                                </span>
-                                <span className="stat-compact">
-                                  💬 {formatNumber(video.commentCount || 0)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="no-videos-compact">
-                          <span className="no-videos-icon">📹</span>
-                          <span>No videos found</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+            {/* Horizontal Performance Stats Grid */}
+            <div className="horizontal-stats-grid">
+              <div className="stat-item-horizontal">
+                <div className="stat-icon-wrapper">
+                  <span className="stat-icon">📹</span>
                 </div>
-              )}
+                <div className="stat-content">
+                  <span className="stat-value">{channel.videos?.length || 0}</span>
+                  <span className="stat-label">Videos</span>
+                </div>
+              </div>
 
-              {/* Videos Tab */}
-              {activeTab === 'videos' && (
-                <div className="videos-content">
-                  <div className="videos-controls-modern">
-                    <div className="controls-left">
-                      <div className="search-wrapper">
-                        <div className="search-icon">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <circle cx="11" cy="11" r="8"/>
-                            <path d="m21 21-4.35-4.35"/>
-                          </svg>
-                        </div>
-                        <input
-                          type="text"
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          placeholder="Search videos..."
-                          className="video-search-input"
-                        />
-                        {searchTerm && (
-                          <button 
-                            onClick={() => setSearchTerm('')}
-                            className="clear-search-small"
-                          >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                              <line x1="18" y1="6" x2="6" y2="18"/>
-                              <line x1="6" y1="6" x2="18" y2="18"/>
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                      
-                      <select 
-                        value={sortBy} 
-                        onChange={(e) => setSortBy(e.target.value as any)}
-                        className="sort-select-modern"
-                      >
-                        <option value="views">Sort by Views</option>
-                        <option value="date">Sort by Date</option>
-                        <option value="engagement">Sort by Engagement</option>
-                      </select>
-                    </div>
-                    
-                    <div className="controls-right">
-                      <div className="view-mode-toggle">
-                        <button 
-                          className={`view-mode-btn ${viewMode === 'list' ? 'active' : ''}`}
-                          onClick={() => setViewMode('list')}
-                          title="List View"
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <line x1="8" y1="6" x2="21" y2="6"/>
-                            <line x1="8" y1="12" x2="21" y2="12"/>
-                            <line x1="8" y1="18" x2="21" y2="18"/>
-                            <line x1="3" y1="6" x2="3.01" y2="6"/>
-                            <line x1="3" y1="12" x2="3.01" y2="12"/>
-                            <line x1="3" y1="18" x2="3.01" y2="18"/>
-                          </svg>
-                        </button>
-                        <button 
-                          className={`view-mode-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                          onClick={() => setViewMode('grid')}
-                          title="Grid View"
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <rect x="3" y="3" width="7" height="7"/>
-                            <rect x="14" y="3" width="7" height="7"/>
-                            <rect x="14" y="14" width="7" height="7"/>
-                            <rect x="3" y="14" width="7" height="7"/>
-                          </svg>
-                        </button>
-                      </div>
-                      
-                      <div className="results-count">
-                        {sortedVideos.length} video{sortedVideos.length !== 1 ? 's' : ''}
-                      </div>
-                    </div>
-                  </div>
+              <div className="stat-item-horizontal">
+                <div className="stat-icon-wrapper">
+                  <span className="stat-icon">👁️</span>
+                </div>
+                <div className="stat-content">
+                  <span className="stat-value">{formatNumber(channel.analytics.totalViews || 0)}</span>
+                  <span className="stat-label">Total Views</span>
+                </div>
+              </div>
 
-                  <div className={`videos-container-modern ${viewMode}`}>
-                    {sortedVideos.length > 0 ? (
-                      sortedVideos.map((video, index) => {
-                        if (!video || !video.videoId) {
-                          return (
-                            <div 
-                              key={`invalid-${index}`} 
-                              className="video-error-item"
-                            >
-                              <span className="error-icon">⚠️</span>
-                              <span>Invalid video data</span>
-                            </div>
-                          );
-                        }
-                        
-                        return (
-                          <VideoCard 
-                            key={`${video.videoId}-${index}`}
-                            video={video} 
-                            channelAverage={channelAverage}
-                          />
-                        );
-                      })
+              <div className="stat-item-horizontal">
+                <div className="stat-icon-wrapper">
+                  <span className="stat-icon">👥</span>
+                </div>
+                <div className="stat-content">
+                  <span className="stat-value">{formatNumber(channel.channelMetrics?.subscriberCount || 0)}</span>
+                  <span className="stat-label">Subscribers</span>
+                </div>
+              </div>
+
+              <div className="stat-item-horizontal">
+                <div className="stat-icon-wrapper">
+                  <span className="stat-icon">💬</span>
+                </div>
+                <div className="stat-content">
+                  <span className="stat-value">{(channel.analytics.engagementRate || 0).toFixed(1)}%</span>
+                  <span className="stat-label">Engagement</span>
+                </div>
+              </div>
+
+              <div className="stat-item-horizontal">
+                <div className="stat-icon-wrapper">
+                  <span className="stat-icon">📊</span>
+                </div>
+                <div className="stat-content">
+                  <span className="stat-value">{formatNumber(channelAverage)}</span>
+                  <span className="stat-label">Avg Views</span>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="horizontal-stats-grid">
+            <div className="stat-item-horizontal error">
+              <div className="stat-icon-wrapper">
+                <span className="stat-icon">⚠️</span>
+              </div>
+              <div className="stat-content">
+                <span className="stat-value">No Data</span>
+                <span className="stat-label">Analysis Failed</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Video Filter Toggle Section */}
+      <div className="video-filter-section">
+        <div className="filter-header">
+          <h4 className="filter-title">
+            📹 Videos ({filteredVideos.length})
+          </h4>
+          <div className="video-type-stats">
+            <span className="type-stat long-videos">📺 {longVideos.length} Long</span>
+            <span className="type-stat shorts">🎬 {shorts.length} Shorts</span>
+          </div>
+        </div>
+        
+        <div className="video-filter-toggle">
+          <button 
+            className={`filter-btn ${videoFilter === 'all' ? 'active' : ''}`}
+            onClick={() => setVideoFilter('all')}
+          >
+            <span className="filter-icon">📱</span>
+            <span className="filter-text">All Videos</span>
+            <span className="filter-count">({(longVideos.length + shorts.length)})</span>
+          </button>
+          
+          <button 
+            className={`filter-btn long-videos ${videoFilter === 'long' ? 'active' : ''}`}
+            onClick={() => setVideoFilter('long')}
+          >
+            <span className="filter-icon">📺</span>
+            <span className="filter-text">Long Videos</span>
+            <span className="filter-count">({longVideos.length})</span>
+          </button>
+          
+          <button 
+            className={`filter-btn shorts ${videoFilter === 'shorts' ? 'active' : ''}`}
+            onClick={() => setVideoFilter('shorts')}
+          >
+            <span className="filter-icon">🎬</span>
+            <span className="filter-text">Shorts</span>
+            <span className="filter-count">({shorts.length})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Horizontal Video Cards with Filter */}
+      <div className="horizontal-videos-section">
+        <div className="horizontal-videos-container">
+          {filteredVideos.length > 0 ? (
+            filteredVideos.map((video, index) => {
+              const performance = getVideoPerformance(video, channelAverage);
+              const isShort = isShortVideo(video);
+              
+              return (
+                <div 
+                  key={video.videoId} 
+                  className={`horizontal-video-card ${isShort ? 'shorts-card' : 'long-video-card'}`}
+                  onClick={() => setSelectedVideo(video)}
+                >
+                  <div className="video-thumbnail-horizontal">
+                    {video.thumbnail ? (
+                      <img 
+                        src={video.thumbnail} 
+                        alt={video.title}
+                        className="thumbnail-image-horizontal"
+                      />
                     ) : (
-                      <div className="no-videos-state-modern">
-                        <div className="no-videos-illustration">
-                          <div className="illustration-icon">📹</div>
-                          <div className="illustration-bg"></div>
-                        </div>
-                        <h4>No Videos Found</h4>
-                        <p>
-                          {searchTerm 
-                            ? `No videos match "${searchTerm}"`
-                            : channel.error 
-                            ? 'Unable to load videos due to an error.' 
-                            : 'No videos were published in the selected time period.'
-                          }
-                        </p>
-                        {searchTerm && (
-                          <button 
-                            onClick={() => setSearchTerm('')}
-                            className="clear-search-btn-large"
-                          >
-                            Clear Search
-                          </button>
-                        )}
+                      <div className="thumbnail-placeholder-horizontal">
+                        <span>📹</span>
                       </div>
                     )}
+                    <div className="video-duration-overlay">
+                      {formatDuration(video.duration || '')}
+                    </div>
+                    <div className={`video-type-badge ${isShort ? 'shorts-badge' : 'long-badge'}`}>
+                      {isShort ? '🎬' : '📺'}
+                    </div>
+                    <div className="video-rank-overlay">#{index + 1}</div>
+                  </div>
+                  
+                  <div className="video-info-horizontal">
+                    <h5 className="video-title-horizontal">{video.title}</h5>
+                    
+                    <div className="video-stats-horizontal">
+                      <div className="stat-item-horizontal">
+                        <span className="stat-label-horizontal">Views:</span>
+                        <span className="stat-value-horizontal">{formatNumber(video.viewCount || 0)}</span>
+                      </div>
+                      
+                      <div className="stat-item-horizontal">
+                        <span className="stat-label-horizontal">Performance:</span>
+                        <span 
+                          className="stat-value-horizontal performance"
+                          style={{ color: performance.color }}
+                        >
+                          {performance.percentage}%
+                        </span>
+                      </div>
+                      
+                      <div className="stat-item-horizontal">
+                        <span className="stat-label-horizontal">Published:</span>
+                        <span className="stat-value-horizontal">{getTimeSince(video.publishedAt || '')}</span>
+                      </div>
+                      
+                      <div className="stat-item-horizontal">
+                        <span className="stat-label-horizontal">Type:</span>
+                        <span className={`stat-value-horizontal ${isShort ? 'shorts-text' : 'long-text'}`}>
+                          {isShort ? 'Short' : 'Long'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              )}
+              );
+            })
+          ) : (
+            <div className="no-videos-horizontal">
+              <div className="no-videos-icon">
+                {videoFilter === 'shorts' ? '🎬' : videoFilter === 'long' ? '📺' : '📹'}
+              </div>
+              <span>No {videoFilter === 'all' ? 'videos' : videoFilter === 'shorts' ? 'shorts' : 'long videos'} found</span>
+            </div>
+          )}
+        </div>
+      </div>
 
-              {/* Analytics Tab */}
-              {activeTab === 'analytics' && hasValidAnalytics && (
-                <div className="analytics-content">
-                  <ChannelAnalytics channel={channel} />
+      {/* Expandable Content - Redesigned Analytics */}
+      <div className={`expandable-content-modern ${isExpanded ? 'expanded' : 'collapsed'}`}>
+        {isExpanded && hasValidAnalytics && channel.analytics && (
+          <div className="analytics-redesigned-section">
+            <div className="analytics-header-redesigned">
+              <h4 className="analytics-title-redesigned">
+                📈 Detailed Analytics
+              </h4>
+            </div>
+            
+            {/* Horizontal Analytics Rows */}
+            <div className="analytics-rows-container">
+              
+              {/* Channel Metrics Row */}
+              <div className="analytics-row">
+                <div className="row-header">
+                  <span className="row-icon">📺</span>
+                  <span className="row-title">Channel Metrics</span>
+                </div>
+                <div className="row-stats">
+                  <div className="analytics-stat-item">
+                    <span className="analytics-stat-icon">👥</span>
+                    <div className="analytics-stat-content">
+                      <span className="analytics-stat-value">{formatNumber(channel.channelMetrics?.subscriberCount || 0)}</span>
+                      <span className="analytics-stat-label">Subscribers</span>
+                    </div>
+                  </div>
+                  <div className="analytics-stat-item">
+                    <span className="analytics-stat-icon">📹</span>
+                    <div className="analytics-stat-content">
+                      <span className="analytics-stat-value">{formatNumber(channel.channelMetrics?.videoCount || 0)}</span>
+                      <span className="analytics-stat-label">Total Videos</span>
+                    </div>
+                  </div>
+                  <div className="analytics-stat-item">
+                    <span className="analytics-stat-icon">👁️</span>
+                    <div className="analytics-stat-content">
+                      <span className="analytics-stat-value">{formatNumber(channel.channelMetrics?.totalChannelViews || 0)}</span>
+                      <span className="analytics-stat-label">Channel Views</span>
+                    </div>
+                  </div>
+                  <div className="analytics-stat-item">
+                    <span className="analytics-stat-icon">📅</span>
+                    <div className="analytics-stat-content">
+                      <span className="analytics-stat-value">
+                        {channel.channelMetrics?.channelCreatedDate ? 
+                          new Date(channel.channelMetrics.channelCreatedDate).getFullYear() : 'N/A'}
+                      </span>
+                      <span className="analytics-stat-label">Created</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Content Analysis Row */}
+              <div className="analytics-row">
+                <div className="row-header">
+                  <span className="row-icon">📚</span>
+                  <span className="row-title">Content Analysis</span>
+                </div>
+                <div className="row-stats">
+                  <div className="analytics-stat-item">
+                    <span className="analytics-stat-icon">⏰</span>
+                    <div className="analytics-stat-content">
+                      <span className="analytics-stat-value">{channel.analytics.uploadFrequency || 'N/A'}</span>
+                      <span className="analytics-stat-label">Upload Frequency</span>
+                    </div>
+                  </div>
+                  <div className="analytics-stat-item">
+                    <span className="analytics-stat-icon">📈</span>
+                    <div className="analytics-stat-content">
+                      <span className="analytics-stat-value" style={{ 
+                        color: channel.analytics.viewsGrowthTrend === 'up' ? '#10b981' : 
+                               channel.analytics.viewsGrowthTrend === 'down' ? '#ef4444' : '#6b7280'
+                      }}>
+                        {channel.analytics.viewsGrowthTrend === 'up' ? 'Growing' : 
+                         channel.analytics.viewsGrowthTrend === 'down' ? 'Declining' : 'Stable'}
+                      </span>
+                      <span className="analytics-stat-label">Growth Trend</span>
+                    </div>
+                  </div>
+                  <div className="analytics-stat-item">
+                    <span className="analytics-stat-icon">⏱️</span>
+                    <div className="analytics-stat-content">
+                      <span className="analytics-stat-value">{Math.round((channel.analytics.averageDuration || 0) / 60)}min</span>
+                      <span className="analytics-stat-label">Avg Duration</span>
+                    </div>
+                  </div>
+                  <div className="analytics-stat-item">
+                    <span className="analytics-stat-icon">🏷️</span>
+                    <div className="analytics-stat-content">
+                      <span className="analytics-stat-value">{channel.analytics.contentCategories?.length || 0}</span>
+                      <span className="analytics-stat-label">Categories</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Video Type Breakdown Row */}
+              <div className="analytics-row">
+                <div className="row-header">
+                  <span className="row-icon">🎬</span>
+                  <span className="row-title">Video Types</span>
+                </div>
+                <div className="row-stats">
+                  <div className="analytics-stat-item">
+                    <span className="analytics-stat-icon">📺</span>
+                    <div className="analytics-stat-content">
+                      <span className="analytics-stat-value">{longVideos.length}</span>
+                      <span className="analytics-stat-label">Long Videos</span>
+                    </div>
+                  </div>
+                  <div className="analytics-stat-item">
+                    <span className="analytics-stat-icon">🎬</span>
+                    <div className="analytics-stat-content">
+                      <span className="analytics-stat-value">{shorts.length}</span>
+                      <span className="analytics-stat-label">Shorts</span>
+                    </div>
+                  </div>
+                  <div className="analytics-stat-item">
+                    <span className="analytics-stat-icon">📊</span>
+                    <div className="analytics-stat-content">
+                      <span className="analytics-stat-value">
+                        {channel.videos?.length ? Math.round((shorts.length / channel.videos.length) * 100) : 0}%
+                      </span>
+                      <span className="analytics-stat-label">Shorts Ratio</span>
+                    </div>
+                  </div>
+                  <div className="analytics-stat-item">
+                    <span className="analytics-stat-icon">💬</span>
+                    <div className="analytics-stat-content">
+                      <span className="analytics-stat-value">{(channel.analytics.engagementRate || 0).toFixed(1)}%</span>
+                      <span className="analytics-stat-label">Engagement</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Top Categories Row (if available) */}
+              {channel.analytics.contentCategories && channel.analytics.contentCategories.length > 0 && (
+                <div className="analytics-row">
+                  <div className="row-header">
+                    <span className="row-icon">🏆</span>
+                    <span className="row-title">Top Categories</span>
+                  </div>
+                  <div className="row-stats categories-stats">
+                    {channel.analytics.contentCategories.slice(0, 4).map((category, index) => (
+                      <div key={category.category} className="analytics-stat-item category-item">
+                        <span className="analytics-stat-icon">📝</span>
+                        <div className="analytics-stat-content">
+                          <span className="analytics-stat-value">{category.category}</span>
+                          <span className="analytics-stat-label">{category.count} videos • {formatNumber(category.avgViews || 0)} avg</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
-          </>
+          </div>
         )}
       </div>
+
+      {/* Video Details Popup - Enhanced Description */}
+      {selectedVideo && (
+        <div className="video-popup-overlay" onClick={() => setSelectedVideo(null)}>
+          <div className="video-popup-content" onClick={(e) => e.stopPropagation()}>
+            <div className="popup-header">
+              <h3 className="popup-title">
+                {isShortVideo(selectedVideo) ? '🎬 YouTube Short' : '📺 Long Video'}
+              </h3>
+              <button 
+                onClick={() => setSelectedVideo(null)}
+                className="popup-close-btn"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="popup-body">
+              <div className="popup-thumbnail">
+                {selectedVideo.thumbnail ? (
+                  <img 
+                    src={selectedVideo.thumbnail} 
+                    alt={selectedVideo.title}
+                    className="popup-thumbnail-image"
+                  />
+                ) : (
+                  <div className="popup-thumbnail-placeholder">
+                    <span>📹</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="popup-details">
+                <h4 className="popup-video-title">{selectedVideo.title}</h4>
+                
+                <div className="popup-stats-grid">
+                  <div className="popup-stat">
+                    <span className="popup-stat-label">Type:</span>
+                    <span className="popup-stat-value">
+                      {isShortVideo(selectedVideo) ? '🎬 YouTube Short' : '📺 Long Video'}
+                    </span>
+                  </div>
+                  <div className="popup-stat">
+                    <span className="popup-stat-label">Views:</span>
+                    <span className="popup-stat-value">{formatNumber(selectedVideo.viewCount || 0)}</span>
+                  </div>
+                  <div className="popup-stat">
+                    <span className="popup-stat-label">Likes:</span>
+                    <span className="popup-stat-value">{formatNumber(selectedVideo.likeCount || 0)}</span>
+                  </div>
+                  <div className="popup-stat">
+                    <span className="popup-stat-label">Comments:</span>
+                    <span className="popup-stat-value">{formatNumber(selectedVideo.commentCount || 0)}</span>
+                  </div>
+                  <div className="popup-stat">
+                    <span className="popup-stat-label">Duration:</span>
+                    <span className="popup-stat-value">{formatDuration(selectedVideo.duration || '')}</span>
+                  </div>
+                  <div className="popup-stat">
+                    <span className="popup-stat-label">Published:</span>
+                    <span className="popup-stat-value">{getTimeSince(selectedVideo.publishedAt || '')}</span>
+                  </div>
+                  <div className="popup-stat">
+                    <span className="popup-stat-label">Performance:</span>
+                    <span className="popup-stat-value">
+                      {getVideoPerformance(selectedVideo, channelAverage).percentage}% vs avg
+                    </span>
+                  </div>
+                </div>
+                
+                {selectedVideo.description && (
+                  <div className="popup-description-enhanced">
+                    <div className="description-header">
+                      <h5 className="description-title">📝 Description</h5>
+                      <button 
+                        className="description-toggle"
+                        onClick={(e) => {
+                          const content = e.currentTarget.parentElement?.nextElementSibling;
+                          if (content) {
+                            content.classList.toggle('expanded');
+                            e.currentTarget.textContent = content.classList.contains('expanded') ? '🔼 Less' : '🔽 More';
+                          }
+                        }}
+                      >
+                        🔽 More
+                      </button>
+                    </div>
+                    <div className="description-content">
+                      <p className="description-text">{selectedVideo.description}</p>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="popup-actions">
+                  <a 
+                    href={`https://youtube.com/watch?v=${selectedVideo.videoId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="popup-action-btn primary"
+                  >
+                    ▶️ Watch on YouTube
+                  </a>
+                  <button 
+                    onClick={() => navigator.clipboard.writeText(`https://youtube.com/watch?v=${selectedVideo.videoId}`)}
+                    className="popup-action-btn secondary"
+                  >
+                    🔗 Copy Link
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
